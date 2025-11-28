@@ -215,53 +215,81 @@ namespace VisionInspectionSystem.HAL
 
             try
             {
-                // 枚举所有相机设备
+                // 方法1: 使用CameraFinder枚举所有设备
                 List<ICameraInfo> allCameras = CameraFinder.Enumerate();
 
                 LogHelper.Info("Camera", $"CameraFinder.Enumerate() 返回 {allCameras.Count} 个设备");
 
-                foreach (var cam in allCameras)
+                if (allCameras.Count > 0)
                 {
-                    var info = new CameraInfo();
-
-                    // 安全获取相机信息
-                    try
+                    foreach (var cam in allCameras)
                     {
-                        info.SerialNumber = cam[CameraInfoKey.SerialNumber];
-                    }
-                    catch { info.SerialNumber = "Unknown"; }
+                        var info = new CameraInfo();
 
-                    try
-                    {
-                        info.ModelName = cam[CameraInfoKey.ModelName];
-                    }
-                    catch { info.ModelName = "Unknown"; }
+                        try { info.SerialNumber = cam[CameraInfoKey.SerialNumber]; }
+                        catch { info.SerialNumber = "Unknown"; }
 
-                    try
-                    {
-                        info.UserDefinedName = cam[CameraInfoKey.UserDefinedName];
-                        if (string.IsNullOrEmpty(info.UserDefinedName))
+                        try { info.ModelName = cam[CameraInfoKey.ModelName]; }
+                        catch { info.ModelName = "Unknown"; }
+
+                        try
                         {
-                            info.UserDefinedName = cam[CameraInfoKey.FriendlyName];
+                            info.UserDefinedName = cam[CameraInfoKey.UserDefinedName];
+                            if (string.IsNullOrEmpty(info.UserDefinedName))
+                            {
+                                info.UserDefinedName = cam[CameraInfoKey.FriendlyName];
+                            }
+                        }
+                        catch { info.UserDefinedName = info.ModelName; }
+
+                        try
+                        {
+                            if (cam.ContainsKey(CameraInfoKey.DeviceIpAddress))
+                            {
+                                info.IpAddress = cam[CameraInfoKey.DeviceIpAddress];
+                            }
+                        }
+                        catch { }
+
+                        cameras.Add(info);
+                        LogHelper.Info("Camera", $"发现相机: {info.UserDefinedName} ({info.SerialNumber}) - {info.ModelName}");
+                    }
+                }
+                else
+                {
+                    // 方法2: CameraFinder返回空时，尝试直接创建Camera对象
+                    LogHelper.Info("Camera", "CameraFinder返回空，尝试直接创建Camera对象...");
+                    try
+                    {
+                        using (Camera testCamera = new Camera())
+                        {
+                            var info = new CameraInfo
+                            {
+                                SerialNumber = testCamera.CameraInfo[CameraInfoKey.SerialNumber],
+                                ModelName = testCamera.CameraInfo[CameraInfoKey.ModelName],
+                                UserDefinedName = testCamera.CameraInfo[CameraInfoKey.FriendlyName]
+                            };
+
+                            try
+                            {
+                                if (testCamera.CameraInfo.ContainsKey(CameraInfoKey.DeviceIpAddress))
+                                {
+                                    info.IpAddress = testCamera.CameraInfo[CameraInfoKey.DeviceIpAddress];
+                                }
+                            }
+                            catch { }
+
+                            cameras.Add(info);
+                            LogHelper.Info("Camera", $"通过Camera()发现相机: {info.UserDefinedName} ({info.SerialNumber})");
                         }
                     }
-                    catch { info.UserDefinedName = info.ModelName; }
-
-                    // GigE相机才有IP地址
-                    try
+                    catch (Exception ex2)
                     {
-                        if (cam.ContainsKey(CameraInfoKey.DeviceIpAddress))
-                        {
-                            info.IpAddress = cam[CameraInfoKey.DeviceIpAddress];
-                        }
+                        LogHelper.Info("Camera", $"直接创建Camera失败: {ex2.Message}");
                     }
-                    catch { }
-
-                    cameras.Add(info);
-                    LogHelper.Info("Camera", $"发现相机: {info.UserDefinedName} ({info.SerialNumber}) - {info.ModelName}");
                 }
 
-                LogHelper.Info("Camera", $"找到 {cameras.Count} 个相机");
+                LogHelper.Info("Camera", $"最终找到 {cameras.Count} 个相机");
             }
             catch (Exception ex)
             {

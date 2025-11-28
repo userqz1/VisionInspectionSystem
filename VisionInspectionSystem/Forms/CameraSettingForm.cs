@@ -118,10 +118,28 @@ namespace VisionInspectionSystem.Forms
         private void RefreshCameraList()
         {
             lstCameras.Items.Clear();
-            _cameraList = CameraManager.Instance.EnumerateCameras();
-            foreach (var camera in _cameraList)
+            try
             {
-                lstCameras.Items.Add(camera.ToString());
+                _cameraList = CameraManager.Instance.EnumerateCameras();
+
+                if (_cameraList == null || _cameraList.Count == 0)
+                {
+                    lstCameras.Items.Add("未找到相机设备");
+                    MessageBox.Show("未检测到相机设备。\n\n请检查：\n1. 相机是否已连接并上电\n2. 网络/USB连接是否正常\n3. 是否已关闭pylon Viewer等占用相机的程序",
+                        "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    foreach (var camera in _cameraList)
+                    {
+                        lstCameras.Items.Add(camera.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"枚举相机失败：\n{ex.Message}\n\n详细信息：\n{ex.ToString()}",
+                    "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
