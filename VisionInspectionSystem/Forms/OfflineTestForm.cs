@@ -427,49 +427,61 @@ namespace VisionInspectionSystem.Forms
             {
                 if (_processor.ToolBlock != null)
                 {
-                    // 获取LastRunRecord并显示
-                    // 使用SubRecords[recordName]方式获取指定的输出图像记录
-                    // 例如: "LastRun.CogFixtureTool1.OutputImage"
-                    ICogRecord lastRunRecord = _processor.ToolBlock.CreateLastRunRecord();
-                    if (lastRunRecord != null && lastRunRecord.SubRecords != null)
+                    if (result.IsPass)
                     {
-                        // 尝试获取指定名称的记录，如果没有配置则使用第一个
-                        ICogRecord displayRecord = null;
-
-                        // 可以通过配置指定要显示的Record名称
-                        // 默认尝试常见的输出图像记录名称
-                        string[] possibleRecordNames = new string[]
+                        // OK时显示带图形叠加的结果图像
+                        // 使用SubRecords[recordName]方式获取指定的输出图像记录
+                        ICogRecord lastRunRecord = _processor.ToolBlock.CreateLastRunRecord();
+                        if (lastRunRecord != null && lastRunRecord.SubRecords != null)
                         {
-                            "LastRun.CogFixtureTool1.OutputImage",
-                            "LastRun.OutputImage",
-                            "CogFixtureTool1.OutputImage"
-                        };
+                            ICogRecord displayRecord = null;
 
-                        foreach (string recordName in possibleRecordNames)
-                        {
-                            try
+                            // 尝试常见的输出图像记录名称
+                            string[] possibleRecordNames = new string[]
                             {
-                                displayRecord = lastRunRecord.SubRecords[recordName];
-                                if (displayRecord != null)
+                                "LastRun.CogFixtureTool1.OutputImage",
+                                "LastRun.OutputImage",
+                                "CogFixtureTool1.OutputImage"
+                            };
+
+                            foreach (string recordName in possibleRecordNames)
+                            {
+                                try
                                 {
-                                    txtOutputs.AppendText($"使用Record: {recordName}\r\n");
-                                    break;
+                                    displayRecord = lastRunRecord.SubRecords[recordName];
+                                    if (displayRecord != null)
+                                    {
+                                        txtOutputs.AppendText($"使用Record: {recordName}\r\n");
+                                        break;
+                                    }
                                 }
+                                catch { }
                             }
-                            catch { }
-                        }
 
-                        // 如果没找到指定名称的记录，使用第一个SubRecord
-                        if (displayRecord == null && lastRunRecord.SubRecords.Count > 0)
-                        {
-                            displayRecord = lastRunRecord.SubRecords[0];
-                            txtOutputs.AppendText($"使用默认Record: {displayRecord?.RecordKey}\r\n");
-                        }
+                            // 如果没找到指定名称的记录，使用第一个SubRecord
+                            if (displayRecord == null && lastRunRecord.SubRecords.Count > 0)
+                            {
+                                displayRecord = lastRunRecord.SubRecords[0];
+                                txtOutputs.AppendText($"使用默认Record: {displayRecord?.RecordKey}\r\n");
+                            }
 
-                        if (displayRecord != null)
+                            if (displayRecord != null)
+                            {
+                                cogRecordDisplay2.Record = displayRecord;
+                                cogRecordDisplay2.Fit(true);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // NG时显示原图，避免残留上次OK的结果
+                        ICogImage currentImage = GetCurrentCogImage();
+                        if (currentImage != null)
                         {
-                            cogRecordDisplay2.Record = displayRecord;
+                            cogRecordDisplay2.Record = null;
+                            cogRecordDisplay2.Image = currentImage;
                             cogRecordDisplay2.Fit(true);
+                            txtOutputs.AppendText("NG - 显示原图\r\n");
                         }
                     }
                 }
