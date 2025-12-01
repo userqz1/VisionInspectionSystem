@@ -38,22 +38,26 @@ namespace VisionInspectionSystem.Forms
             this.txtOutputs = new System.Windows.Forms.TextBox();
             this.panel1 = new System.Windows.Forms.Panel();
             this.btnClear = new System.Windows.Forms.Button();
-            this.btnVppInfo = new System.Windows.Forms.Button();
             this.lblRunTime = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.lblResult = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.btnRun = new System.Windows.Forms.Button();
-            this.lblImagePath = new System.Windows.Forms.ToolStripStatusLabel();
             this.btnLoadImage = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
-            this.lblVppPath = new System.Windows.Forms.ToolStripStatusLabel();
             this.btnLoadVpp = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.btnPrevImage = new System.Windows.Forms.Button();
             this.btnNextImage = new System.Windows.Forms.Button();
             this.lblImageIndex = new System.Windows.Forms.Label();
+            this.lblVppPathDisplay = new System.Windows.Forms.Label();
+            this.lblImagePathDisplay = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.cboCurrentRecipe = new System.Windows.Forms.ComboBox();
+            this.btnSaveRecipe = new System.Windows.Forms.Button();
+            this.btnManageRecipe = new System.Windows.Forms.Button();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
+            this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -79,7 +83,7 @@ namespace VisionInspectionSystem.Forms
             // splitContainer1
             //
             this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.splitContainer1.Location = new System.Drawing.Point(0, 100);
+            this.splitContainer1.Location = new System.Drawing.Point(0, 130);
             this.splitContainer1.Name = "splitContainer1";
             //
             // splitContainer1.Panel1
@@ -89,7 +93,7 @@ namespace VisionInspectionSystem.Forms
             // splitContainer1.Panel2
             //
             this.splitContainer1.Panel2.Controls.Add(this.tabControl1);
-            this.splitContainer1.Size = new System.Drawing.Size(1200, 550);
+            this.splitContainer1.Size = new System.Drawing.Size(1200, 520);
             this.splitContainer1.SplitterDistance = 800;
             this.splitContainer1.TabIndex = 0;
             //
@@ -106,7 +110,7 @@ namespace VisionInspectionSystem.Forms
             // splitContainer2.Panel2
             //
             this.splitContainer2.Panel2.Controls.Add(this.groupBox2);
-            this.splitContainer2.Size = new System.Drawing.Size(800, 550);
+            this.splitContainer2.Size = new System.Drawing.Size(800, 520);
             this.splitContainer2.SplitterDistance = 395;
             this.splitContainer2.TabIndex = 0;
             //
@@ -116,7 +120,7 @@ namespace VisionInspectionSystem.Forms
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox1.Location = new System.Drawing.Point(0, 0);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(395, 550);
+            this.groupBox1.Size = new System.Drawing.Size(395, 520);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "原始图像";
@@ -126,7 +130,7 @@ namespace VisionInspectionSystem.Forms
             this.cogRecordDisplay1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cogRecordDisplay1.Location = new System.Drawing.Point(3, 17);
             this.cogRecordDisplay1.Name = "cogRecordDisplay1";
-            this.cogRecordDisplay1.Size = new System.Drawing.Size(389, 530);
+            this.cogRecordDisplay1.Size = new System.Drawing.Size(389, 500);
             this.cogRecordDisplay1.TabIndex = 0;
             //
             // groupBox2
@@ -135,7 +139,7 @@ namespace VisionInspectionSystem.Forms
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox2.Location = new System.Drawing.Point(0, 0);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(401, 550);
+            this.groupBox2.Size = new System.Drawing.Size(401, 520);
             this.groupBox2.TabIndex = 0;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "结果图像";
@@ -145,7 +149,7 @@ namespace VisionInspectionSystem.Forms
             this.cogRecordDisplay2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cogRecordDisplay2.Location = new System.Drawing.Point(3, 17);
             this.cogRecordDisplay2.Name = "cogRecordDisplay2";
-            this.cogRecordDisplay2.Size = new System.Drawing.Size(395, 530);
+            this.cogRecordDisplay2.Size = new System.Drawing.Size(395, 500);
             this.cogRecordDisplay2.TabIndex = 0;
             //
             // tabControl1
@@ -157,7 +161,7 @@ namespace VisionInspectionSystem.Forms
             this.tabControl1.Location = new System.Drawing.Point(0, 0);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(396, 550);
+            this.tabControl1.Size = new System.Drawing.Size(396, 520);
             this.tabControl1.TabIndex = 0;
             //
             // tabPage1
@@ -166,7 +170,7 @@ namespace VisionInspectionSystem.Forms
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(388, 524);
+            this.tabPage1.Size = new System.Drawing.Size(388, 494);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "输出参数";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -187,7 +191,7 @@ namespace VisionInspectionSystem.Forms
             this.dgvOutputs.ReadOnly = true;
             this.dgvOutputs.RowHeadersVisible = false;
             this.dgvOutputs.RowTemplate.Height = 23;
-            this.dgvOutputs.Size = new System.Drawing.Size(382, 518);
+            this.dgvOutputs.Size = new System.Drawing.Size(382, 488);
             this.dgvOutputs.TabIndex = 0;
             //
             // colName
@@ -217,7 +221,7 @@ namespace VisionInspectionSystem.Forms
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(388, 524);
+            this.tabPage2.Size = new System.Drawing.Size(388, 494);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "输入参数";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -238,7 +242,7 @@ namespace VisionInspectionSystem.Forms
             this.dgvInputs.ReadOnly = true;
             this.dgvInputs.RowHeadersVisible = false;
             this.dgvInputs.RowTemplate.Height = 23;
-            this.dgvInputs.Size = new System.Drawing.Size(382, 518);
+            this.dgvInputs.Size = new System.Drawing.Size(382, 488);
             this.dgvInputs.TabIndex = 0;
             //
             // colInputName
@@ -267,7 +271,7 @@ namespace VisionInspectionSystem.Forms
             this.tabPage3.Controls.Add(this.txtOutputs);
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(388, 524);
+            this.tabPage3.Size = new System.Drawing.Size(388, 494);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "日志";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -282,15 +286,20 @@ namespace VisionInspectionSystem.Forms
             this.txtOutputs.Name = "txtOutputs";
             this.txtOutputs.ReadOnly = true;
             this.txtOutputs.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.txtOutputs.Size = new System.Drawing.Size(388, 524);
+            this.txtOutputs.Size = new System.Drawing.Size(388, 494);
             this.txtOutputs.TabIndex = 0;
             this.txtOutputs.WordWrap = false;
             //
             // panel1
             //
             this.panel1.BackColor = System.Drawing.Color.WhiteSmoke;
+            this.panel1.Controls.Add(this.btnManageRecipe);
+            this.panel1.Controls.Add(this.btnSaveRecipe);
+            this.panel1.Controls.Add(this.cboCurrentRecipe);
+            this.panel1.Controls.Add(this.label3);
+            this.panel1.Controls.Add(this.lblImagePathDisplay);
+            this.panel1.Controls.Add(this.lblVppPathDisplay);
             this.panel1.Controls.Add(this.btnClear);
-            this.panel1.Controls.Add(this.btnVppInfo);
             this.panel1.Controls.Add(this.lblRunTime);
             this.panel1.Controls.Add(this.label5);
             this.panel1.Controls.Add(this.lblResult);
@@ -306,12 +315,12 @@ namespace VisionInspectionSystem.Forms
             this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel1.Location = new System.Drawing.Point(0, 0);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1200, 100);
+            this.panel1.Size = new System.Drawing.Size(1200, 130);
             this.panel1.TabIndex = 1;
             //
             // btnClear
             //
-            this.btnClear.Location = new System.Drawing.Point(650, 55);
+            this.btnClear.Location = new System.Drawing.Point(830, 90);
             this.btnClear.Name = "btnClear";
             this.btnClear.Size = new System.Drawing.Size(80, 30);
             this.btnClear.TabIndex = 10;
@@ -319,22 +328,11 @@ namespace VisionInspectionSystem.Forms
             this.btnClear.UseVisualStyleBackColor = true;
             this.btnClear.Click += new System.EventHandler(this.btnClear_Click);
             //
-            // btnVppInfo
-            //
-            this.btnVppInfo.Enabled = false;
-            this.btnVppInfo.Location = new System.Drawing.Point(560, 55);
-            this.btnVppInfo.Name = "btnVppInfo";
-            this.btnVppInfo.Size = new System.Drawing.Size(80, 30);
-            this.btnVppInfo.TabIndex = 9;
-            this.btnVppInfo.Text = "VPP信息";
-            this.btnVppInfo.UseVisualStyleBackColor = true;
-            this.btnVppInfo.Click += new System.EventHandler(this.btnVppInfo_Click);
-            //
             // lblRunTime
             //
             this.lblRunTime.AutoSize = true;
             this.lblRunTime.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.lblRunTime.Location = new System.Drawing.Point(920, 60);
+            this.lblRunTime.Location = new System.Drawing.Point(1050, 60);
             this.lblRunTime.Name = "lblRunTime";
             this.lblRunTime.Size = new System.Drawing.Size(18, 22);
             this.lblRunTime.TabIndex = 8;
@@ -343,7 +341,7 @@ namespace VisionInspectionSystem.Forms
             // label5
             //
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(860, 65);
+            this.label5.Location = new System.Drawing.Point(990, 65);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(59, 12);
             this.label5.TabIndex = 7;
@@ -352,7 +350,7 @@ namespace VisionInspectionSystem.Forms
             // lblResult
             //
             this.lblResult.Font = new System.Drawing.Font("Arial", 24F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblResult.Location = new System.Drawing.Point(920, 10);
+            this.lblResult.Location = new System.Drawing.Point(1050, 10);
             this.lblResult.Name = "lblResult";
             this.lblResult.Size = new System.Drawing.Size(100, 45);
             this.lblResult.TabIndex = 6;
@@ -362,7 +360,7 @@ namespace VisionInspectionSystem.Forms
             // label4
             //
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(860, 25);
+            this.label4.Location = new System.Drawing.Point(990, 25);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(59, 12);
             this.label4.TabIndex = 5;
@@ -374,70 +372,82 @@ namespace VisionInspectionSystem.Forms
             this.btnRun.Enabled = false;
             this.btnRun.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.btnRun.ForeColor = System.Drawing.Color.White;
-            this.btnRun.Location = new System.Drawing.Point(560, 10);
+            this.btnRun.Location = new System.Drawing.Point(650, 10);
             this.btnRun.Name = "btnRun";
-            this.btnRun.Size = new System.Drawing.Size(170, 40);
+            this.btnRun.Size = new System.Drawing.Size(170, 70);
             this.btnRun.TabIndex = 4;
             this.btnRun.Text = "运行检测";
             this.btnRun.UseVisualStyleBackColor = false;
             this.btnRun.Click += new System.EventHandler(this.btnRun_Click);
             //
-            // lblImagePath
-            //
-            this.lblImagePath.Name = "lblImagePath";
-            this.lblImagePath.Size = new System.Drawing.Size(32, 17);
-            this.lblImagePath.Text = "未选择";
-            //
             // btnLoadImage
             //
-            this.btnLoadImage.Location = new System.Drawing.Point(130, 55);
+            this.btnLoadImage.Font = new System.Drawing.Font("宋体", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.btnLoadImage.Location = new System.Drawing.Point(80, 52);
             this.btnLoadImage.Name = "btnLoadImage";
-            this.btnLoadImage.Size = new System.Drawing.Size(400, 30);
+            this.btnLoadImage.Size = new System.Drawing.Size(32, 28);
             this.btnLoadImage.TabIndex = 2;
-            this.btnLoadImage.Text = "加载测试图像...";
+            this.btnLoadImage.Text = "...";
             this.btnLoadImage.UseVisualStyleBackColor = true;
             this.btnLoadImage.Click += new System.EventHandler(this.btnLoadImage_Click);
             //
             // label2
             //
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(20, 65);
+            this.label2.Location = new System.Drawing.Point(15, 60);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(59, 12);
             this.label2.TabIndex = 1;
             this.label2.Text = "测试图像:";
             //
-            // lblVppPath
-            //
-            this.lblVppPath.Name = "lblVppPath";
-            this.lblVppPath.Size = new System.Drawing.Size(44, 17);
-            this.lblVppPath.Text = "未加载";
-            //
             // btnLoadVpp
             //
-            this.btnLoadVpp.Location = new System.Drawing.Point(130, 15);
+            this.btnLoadVpp.Font = new System.Drawing.Font("宋体", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.btnLoadVpp.Location = new System.Drawing.Point(80, 12);
             this.btnLoadVpp.Name = "btnLoadVpp";
-            this.btnLoadVpp.Size = new System.Drawing.Size(400, 30);
+            this.btnLoadVpp.Size = new System.Drawing.Size(32, 28);
             this.btnLoadVpp.TabIndex = 0;
-            this.btnLoadVpp.Text = "加载VPP文件...";
+            this.btnLoadVpp.Text = "...";
             this.btnLoadVpp.UseVisualStyleBackColor = true;
             this.btnLoadVpp.Click += new System.EventHandler(this.btnLoadVpp_Click);
             //
             // label1
             //
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(20, 25);
+            this.label1.Location = new System.Drawing.Point(15, 20);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(53, 12);
             this.label1.TabIndex = 0;
             this.label1.Text = "VPP文件:";
             //
+            // lblVppPathDisplay
+            //
+            this.lblVppPathDisplay.AutoEllipsis = true;
+            this.lblVppPathDisplay.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.lblVppPathDisplay.Location = new System.Drawing.Point(120, 12);
+            this.lblVppPathDisplay.Name = "lblVppPathDisplay";
+            this.lblVppPathDisplay.Size = new System.Drawing.Size(510, 28);
+            this.lblVppPathDisplay.TabIndex = 14;
+            this.lblVppPathDisplay.Text = "未加载";
+            this.lblVppPathDisplay.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
+            // lblImagePathDisplay
+            //
+            this.lblImagePathDisplay.AutoEllipsis = true;
+            this.lblImagePathDisplay.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.lblImagePathDisplay.Location = new System.Drawing.Point(120, 52);
+            this.lblImagePathDisplay.Name = "lblImagePathDisplay";
+            this.lblImagePathDisplay.Size = new System.Drawing.Size(510, 28);
+            this.lblImagePathDisplay.TabIndex = 15;
+            this.lblImagePathDisplay.Text = "未加载";
+            this.lblImagePathDisplay.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
             // btnPrevImage
             //
             this.btnPrevImage.Enabled = false;
-            this.btnPrevImage.Location = new System.Drawing.Point(740, 55);
+            this.btnPrevImage.Location = new System.Drawing.Point(830, 52);
             this.btnPrevImage.Name = "btnPrevImage";
-            this.btnPrevImage.Size = new System.Drawing.Size(40, 30);
+            this.btnPrevImage.Size = new System.Drawing.Size(40, 28);
             this.btnPrevImage.TabIndex = 11;
             this.btnPrevImage.Text = "<";
             this.btnPrevImage.UseVisualStyleBackColor = true;
@@ -446,9 +456,9 @@ namespace VisionInspectionSystem.Forms
             // btnNextImage
             //
             this.btnNextImage.Enabled = false;
-            this.btnNextImage.Location = new System.Drawing.Point(785, 55);
+            this.btnNextImage.Location = new System.Drawing.Point(875, 52);
             this.btnNextImage.Name = "btnNextImage";
-            this.btnNextImage.Size = new System.Drawing.Size(40, 30);
+            this.btnNextImage.Size = new System.Drawing.Size(40, 28);
             this.btnNextImage.TabIndex = 12;
             this.btnNextImage.Text = ">";
             this.btnNextImage.UseVisualStyleBackColor = true;
@@ -457,22 +467,66 @@ namespace VisionInspectionSystem.Forms
             // lblImageIndex
             //
             this.lblImageIndex.AutoSize = true;
-            this.lblImageIndex.Location = new System.Drawing.Point(740, 25);
+            this.lblImageIndex.Location = new System.Drawing.Point(830, 20);
             this.lblImageIndex.Name = "lblImageIndex";
             this.lblImageIndex.Size = new System.Drawing.Size(77, 12);
             this.lblImageIndex.TabIndex = 13;
             this.lblImageIndex.Text = "第 0 / 0 张";
             //
+            // label3
+            //
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(15, 100);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(59, 12);
+            this.label3.TabIndex = 16;
+            this.label3.Text = "当前版型:";
+            //
+            // cboCurrentRecipe
+            //
+            this.cboCurrentRecipe.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboCurrentRecipe.FormattingEnabled = true;
+            this.cboCurrentRecipe.Location = new System.Drawing.Point(80, 96);
+            this.cboCurrentRecipe.Name = "cboCurrentRecipe";
+            this.cboCurrentRecipe.Size = new System.Drawing.Size(200, 20);
+            this.cboCurrentRecipe.TabIndex = 17;
+            this.cboCurrentRecipe.SelectedIndexChanged += new System.EventHandler(this.cboCurrentRecipe_SelectedIndexChanged);
+            //
+            // btnSaveRecipe
+            //
+            this.btnSaveRecipe.Location = new System.Drawing.Point(290, 94);
+            this.btnSaveRecipe.Name = "btnSaveRecipe";
+            this.btnSaveRecipe.Size = new System.Drawing.Size(80, 25);
+            this.btnSaveRecipe.TabIndex = 18;
+            this.btnSaveRecipe.Text = "保存版型";
+            this.btnSaveRecipe.UseVisualStyleBackColor = true;
+            this.btnSaveRecipe.Click += new System.EventHandler(this.btnSaveRecipe_Click);
+            //
+            // btnManageRecipe
+            //
+            this.btnManageRecipe.Location = new System.Drawing.Point(380, 94);
+            this.btnManageRecipe.Name = "btnManageRecipe";
+            this.btnManageRecipe.Size = new System.Drawing.Size(80, 25);
+            this.btnManageRecipe.TabIndex = 19;
+            this.btnManageRecipe.Text = "版型管理";
+            this.btnManageRecipe.UseVisualStyleBackColor = true;
+            this.btnManageRecipe.Click += new System.EventHandler(this.btnManageRecipe_Click);
+            //
             // statusStrip1
             //
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.lblVppPath,
-            this.lblImagePath});
+            this.lblStatus});
             this.statusStrip1.Location = new System.Drawing.Point(0, 650);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Size = new System.Drawing.Size(1200, 22);
             this.statusStrip1.TabIndex = 2;
             this.statusStrip1.Text = "statusStrip1";
+            //
+            // lblStatus
+            //
+            this.lblStatus.Name = "lblStatus";
+            this.lblStatus.Size = new System.Drawing.Size(32, 17);
+            this.lblStatus.Text = "就绪";
             //
             // OfflineTestForm
             //
@@ -536,13 +590,11 @@ namespace VisionInspectionSystem.Forms
         private System.Windows.Forms.Button btnLoadVpp;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.StatusStrip statusStrip1;
-        private System.Windows.Forms.ToolStripStatusLabel lblVppPath;
-        private System.Windows.Forms.ToolStripStatusLabel lblImagePath;
+        private System.Windows.Forms.ToolStripStatusLabel lblStatus;
         private System.Windows.Forms.Label lblResult;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label lblRunTime;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.Button btnVppInfo;
         private System.Windows.Forms.Button btnClear;
         private System.Windows.Forms.DataGridViewTextBoxColumn colName;
         private System.Windows.Forms.DataGridViewTextBoxColumn colType;
@@ -553,5 +605,11 @@ namespace VisionInspectionSystem.Forms
         private System.Windows.Forms.Button btnPrevImage;
         private System.Windows.Forms.Button btnNextImage;
         private System.Windows.Forms.Label lblImageIndex;
+        private System.Windows.Forms.Label lblVppPathDisplay;
+        private System.Windows.Forms.Label lblImagePathDisplay;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.ComboBox cboCurrentRecipe;
+        private System.Windows.Forms.Button btnSaveRecipe;
+        private System.Windows.Forms.Button btnManageRecipe;
     }
 }

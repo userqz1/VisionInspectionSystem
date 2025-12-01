@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -31,7 +32,33 @@ namespace VisionInspectionSystem.Forms
         private int _maxImageCount;
 
         // 配方配置文件路径
-        private readonly string _recipeConfigPath;
+        private readonly string _recipeConfigDir;
+
+        // 是否已经运行过一次检测（用于第二次点击自动切换下一张）
+        private bool _hasRunOnce;
+
+        // 版型列表
+        private List<RecipeInfo> _recipeList;
+
+        // 是否正在加载版型（防止触发SelectedIndexChanged）
+        private bool _isLoadingRecipe;
+
+        #endregion
+
+        #region 内部类 - 版型信息
+
+        private class RecipeInfo
+        {
+            public string Name { get; set; }
+            public string FilePath { get; set; }
+            public string VppPath { get; set; }
+            public string ImagePath { get; set; }
+
+            public override string ToString()
+            {
+                return Name;
+            }
+        }
 
         #endregion
 
@@ -41,7 +68,13 @@ namespace VisionInspectionSystem.Forms
         {
             InitializeComponent();
             _processor = new VisionProProcessor();
-            _recipeConfigPath = Path.Combine(Application.StartupPath, "Config", "OfflineTestRecipe.ini");
+
+            // 配方文件路径
+            _recipeConfigDir = Path.Combine(Application.StartupPath, "Config", "Recipes");
+
+            _hasRunOnce = false;
+            _recipeList = new List<RecipeInfo>();
+            _isLoadingRecipe = false;
         }
 
         #endregion
@@ -50,8 +83,16 @@ namespace VisionInspectionSystem.Forms
 
         private void OfflineTestForm_Load(object sender, EventArgs e)
         {
-            // 加载上次的配方设置
-            LoadRecipeConfig();
+            // 确保配方目录存在
+            if (!Directory.Exists(_recipeConfigDir))
+            {
+                Directory.CreateDirectory(_recipeConfigDir);
+            }
+
+            // 加载版型列表
+            LoadRecipeList();
+
+            txtOutputs.Text = "欢迎使用VisionPro离线测试工具\r\n\r\n请先加载VPP文件和测试图像，或选择已保存的版型。\r\n";
             UpdateUI();
         }
 
@@ -64,7 +105,7 @@ namespace VisionInspectionSystem.Forms
 
         #endregion
 
-        #region 按钮事件
+        #region 按钮事件 - 文件加载
 
         /// <summary>
         /// 加载VPP文件
@@ -109,6 +150,10 @@ namespace VisionInspectionSystem.Forms
             }
         }
 
+        #endregion
+
+        #region 按钮事件 - 检测运行
+
         /// <summary>
         /// 运行检测
         /// </summary>
@@ -126,7 +171,19 @@ namespace VisionInspectionSystem.Forms
                 return;
             }
 
+            // 如果已经运行过一次，第二次点击时自动切换到下一张图像
+            if (_hasRunOnce)
+            {
+                _currentImageIndex++;
+                if (_currentImageIndex >= _maxImageCount)
+                {
+                    _currentImageIndex = 0;
+                }
+                DisplayCurrentImage();
+            }
+
             RunInspection();
+            _hasRunOnce = true;
         }
 
         /// <summary>
@@ -142,6 +199,7 @@ namespace VisionInspectionSystem.Forms
                 _currentImageIndex = _maxImageCount - 1;
             }
             DisplayCurrentImage();
+            _hasRunOnce = false; // 手动切换后重置
         }
 
         /// <summary>
@@ -157,21 +215,7 @@ namespace VisionInspectionSystem.Forms
                 _currentImageIndex = 0;
             }
             DisplayCurrentImage();
-        }
-
-        /// <summary>
-        /// 查看VPP信息
-        /// </summary>
-        private void btnVppInfo_Click(object sender, EventArgs e)
-        {
-            if (!_processor.IsJobLoaded)
-            {
-                MessageBox.Show("请先加载VPP文件", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            string info = _processor.GetInputOutputSummary();
-            txtOutputs.Text = info;
+            _hasRunOnce = false; // 手动切换后重置
         }
 
         /// <summary>
@@ -187,6 +231,214 @@ namespace VisionInspectionSystem.Forms
             lblResult.BackColor = SystemColors.Control;
             lblResult.ForeColor = SystemColors.ControlText;
             lblRunTime.Text = "-";
+            _hasRunOnce = false;
+        }
+
+        #endregion
+
+        #region 按钮事件 - 版型管理
+
+        /// <summary>
+        /// 保存版型
+        /// </summary>
+        private void btnSaveRecipe_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentVppPath))
+            {
+                MessageBox.Show("请先加载VPP文件", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 弹出输入框让用户输入版型名称
+            string recipeName = ShowInputDialog("保存版型", "请输入版型名称:", "新版型");
+            if (string.IsNullOrEmpty(recipeName))
+            {
+                return;
+            }
+
+            // 检查名称是否已存在
+            string filePath = Path.Combine(_recipeConfigDir, $"{recipeName}.ini");
+            if (File.Exists(filePath))
+            {
+                if (MessageBox.Show($"版型 \"{recipeName}\" 已存在，是否覆盖？", "确认", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            // 保存版型
+            SaveRecipeToFile(filePath, recipeName);
+
+            // 刷新版型列表
+            LoadRecipeList();
+
+            // 选中刚保存的版型
+            for (int i = 0; i < cboCurrentRecipe.Items.Count; i++)
+            {
+                if (cboCurrentRecipe.Items[i] is RecipeInfo recipe && recipe.Name == recipeName)
+                {
+                    _isLoadingRecipe = true;
+                    cboCurrentRecipe.SelectedIndex = i;
+                    _isLoadingRecipe = false;
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 版型管理
+        /// </summary>
+        private void btnManageRecipe_Click(object sender, EventArgs e)
+        {
+            ShowRecipeManageDialog();
+        }
+
+        /// <summary>
+        /// 显示版型管理对话框
+        /// </summary>
+        private void ShowRecipeManageDialog()
+        {
+            Form manageForm = new Form()
+            {
+                Width = 450,
+                Height = 350,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = "版型管理",
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            ListBox lstRecipes = new ListBox()
+            {
+                Left = 20,
+                Top = 20,
+                Width = 300,
+                Height = 250
+            };
+
+            Button btnDelete = new Button()
+            {
+                Text = "删除",
+                Left = 340,
+                Top = 20,
+                Width = 80,
+                Height = 30
+            };
+
+            Button btnOpenDir = new Button()
+            {
+                Text = "打开目录",
+                Left = 340,
+                Top = 60,
+                Width = 80,
+                Height = 30
+            };
+
+            Button btnRefresh = new Button()
+            {
+                Text = "刷新",
+                Left = 340,
+                Top = 100,
+                Width = 80,
+                Height = 30
+            };
+
+            Button btnClose = new Button()
+            {
+                Text = "关闭",
+                Left = 340,
+                Top = 240,
+                Width = 80,
+                Height = 30,
+                DialogResult = DialogResult.Cancel
+            };
+
+            // 加载版型列表
+            Action refreshList = () =>
+            {
+                lstRecipes.Items.Clear();
+                if (Directory.Exists(_recipeConfigDir))
+                {
+                    var files = Directory.GetFiles(_recipeConfigDir, "*.ini");
+                    foreach (var file in files)
+                    {
+                        lstRecipes.Items.Add(Path.GetFileNameWithoutExtension(file));
+                    }
+                }
+            };
+            refreshList();
+
+            // 删除按钮事件
+            btnDelete.Click += (s, args) =>
+            {
+                if (lstRecipes.SelectedItem == null)
+                {
+                    MessageBox.Show("请先选择要删除的版型", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string recipeName = lstRecipes.SelectedItem.ToString();
+                if (MessageBox.Show($"确定要删除版型 \"{recipeName}\" 吗？\n\n此操作不可恢复！", "确认删除",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    try
+                    {
+                        string filePath = Path.Combine(_recipeConfigDir, $"{recipeName}.ini");
+                        if (File.Exists(filePath))
+                        {
+                            File.Delete(filePath);
+                            MessageBox.Show($"版型 \"{recipeName}\" 已删除", "删除成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            refreshList();
+
+                            // 同时刷新主窗体的下拉框
+                            LoadRecipeList();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"删除失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            };
+
+            // 打开目录按钮事件
+            btnOpenDir.Click += (s, args) =>
+            {
+                if (Directory.Exists(_recipeConfigDir))
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", _recipeConfigDir);
+                }
+            };
+
+            // 刷新按钮事件
+            btnRefresh.Click += (s, args) =>
+            {
+                refreshList();
+                LoadRecipeList(); // 同时刷新下拉框
+            };
+
+            manageForm.Controls.Add(lstRecipes);
+            manageForm.Controls.Add(btnDelete);
+            manageForm.Controls.Add(btnOpenDir);
+            manageForm.Controls.Add(btnRefresh);
+            manageForm.Controls.Add(btnClose);
+            manageForm.CancelButton = btnClose;
+
+            manageForm.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// 当前版型选择改变
+        /// </summary>
+        private void cboCurrentRecipe_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_isLoadingRecipe) return;
+
+            if (cboCurrentRecipe.SelectedItem is RecipeInfo recipe)
+            {
+                LoadRecipeFromFile(recipe.FilePath, recipe.Name);
+            }
         }
 
         #endregion
@@ -202,12 +454,14 @@ namespace VisionInspectionSystem.Forms
             {
                 Cursor = Cursors.WaitCursor;
                 txtOutputs.Text = "正在加载VPP文件...\r\n";
+                lblStatus.Text = "正在加载VPP...";
 
                 if (_processor.LoadJob(path))
                 {
                     _currentVppPath = path;
-                    lblVppPath.Text = Path.GetFileName(path);
-                    lblVppPath.ToolTipText = path;
+
+                    // 更新路径显示
+                    lblVppPathDisplay.Text = path;
 
                     // 显示输入输出信息
                     StringBuilder sb = new StringBuilder();
@@ -223,24 +477,24 @@ namespace VisionInspectionSystem.Forms
                     // 填充输入参数到DataGridView
                     FillInputsGrid();
 
-                    // 保存配方配置
-                    SaveRecipeConfig();
-
                     UpdateUI();
+                    lblStatus.Text = "VPP加载成功";
 
                     // 提示加载成功
-                    MessageBox.Show($"VPP文件加载成功!\n\n文件: {Path.GetFileName(path)}\n输入参数: {_processor.InputNames.Count}个\n输出参数: {_processor.OutputNames.Count}个\n\n配方已保存，下次启动将自动加载。",
+                    MessageBox.Show($"VPP文件加载成功!\n\n文件: {Path.GetFileName(path)}\n输入参数: {_processor.InputNames.Count}个\n输出参数: {_processor.OutputNames.Count}个",
                         "加载成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
                     txtOutputs.Text = "VPP文件加载失败！请确保文件是有效的ToolBlock格式。";
+                    lblStatus.Text = "VPP加载失败";
                     MessageBox.Show("VPP文件加载失败！\n请确保文件是有效的ToolBlock格式。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
                 txtOutputs.Text = $"加载VPP失败: {ex.Message}\r\n\r\n{ex.StackTrace}";
+                lblStatus.Text = "VPP加载失败";
                 MessageBox.Show($"加载VPP失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -261,6 +515,7 @@ namespace VisionInspectionSystem.Forms
             try
             {
                 Cursor = Cursors.WaitCursor;
+                lblStatus.Text = "正在加载图像...";
 
                 // 先关闭之前的文件
                 CloseImageFile();
@@ -272,9 +527,10 @@ namespace VisionInspectionSystem.Forms
                 _maxImageCount = _imageFile.Count;
                 _currentImageIndex = 0;
                 _currentImagePath = path;
+                _hasRunOnce = false;
 
-                lblImagePath.Text = Path.GetFileName(path);
-                lblImagePath.ToolTipText = path;
+                // 更新路径显示
+                lblImagePathDisplay.Text = path;
 
                 // 更新图像索引显示
                 UpdateImageIndexLabel();
@@ -288,15 +544,14 @@ namespace VisionInspectionSystem.Forms
                 // 显示第一张图像
                 DisplayCurrentImage();
 
-                // 保存配方配置
-                SaveRecipeConfig();
-
                 UpdateUI();
+                lblStatus.Text = $"图像加载成功，共 {_maxImageCount} 张";
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"加载图像失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 txtOutputs.AppendText($"加载图像失败: {ex.Message}\r\n");
+                lblStatus.Text = "图像加载失败";
             }
             finally
             {
@@ -378,7 +633,8 @@ namespace VisionInspectionSystem.Forms
             try
             {
                 Cursor = Cursors.WaitCursor;
-                txtOutputs.AppendText("\r\n--- 开始检测 ---\r\n");
+                lblStatus.Text = "正在检测...";
+                txtOutputs.AppendText($"\r\n--- 开始检测 (图像 {_currentImageIndex + 1}/{_maxImageCount}) ---\r\n");
 
                 // 获取当前CogImage
                 ICogImage cogImage = GetCurrentCogImage();
@@ -421,55 +677,67 @@ namespace VisionInspectionSystem.Forms
             lblResult.BackColor = result.IsPass ? Color.LimeGreen : Color.Red;
             lblResult.ForeColor = Color.White;
             lblRunTime.Text = $"{result.RunTime:F1} ms";
+            lblStatus.Text = $"检测完成 - {(result.IsPass ? "OK" : "NG")} ({result.RunTime:F1}ms)";
 
             // 使用CogRecordDisplay显示结果图像和图形叠加
             try
             {
                 if (_processor.ToolBlock != null)
                 {
-                    // 获取LastRunRecord并显示
-                    // 使用SubRecords[recordName]方式获取指定的输出图像记录
-                    // 例如: "LastRun.CogFixtureTool1.OutputImage"
-                    ICogRecord lastRunRecord = _processor.ToolBlock.CreateLastRunRecord();
-                    if (lastRunRecord != null && lastRunRecord.SubRecords != null)
+                    if (result.IsPass)
                     {
-                        // 尝试获取指定名称的记录，如果没有配置则使用第一个
-                        ICogRecord displayRecord = null;
-
-                        // 可以通过配置指定要显示的Record名称
-                        // 默认尝试常见的输出图像记录名称
-                        string[] possibleRecordNames = new string[]
+                        // OK时显示带图形叠加的结果图像
+                        ICogRecord lastRunRecord = _processor.ToolBlock.CreateLastRunRecord();
+                        if (lastRunRecord != null && lastRunRecord.SubRecords != null)
                         {
-                            "LastRun.CogFixtureTool1.OutputImage",
-                            "LastRun.OutputImage",
-                            "CogFixtureTool1.OutputImage"
-                        };
+                            ICogRecord displayRecord = null;
 
-                        foreach (string recordName in possibleRecordNames)
-                        {
-                            try
+                            // 尝试常见的输出图像记录名称
+                            string[] possibleRecordNames = new string[]
                             {
-                                displayRecord = lastRunRecord.SubRecords[recordName];
-                                if (displayRecord != null)
+                                "LastRun.CogFixtureTool1.OutputImage",
+                                "LastRun.OutputImage",
+                                "CogFixtureTool1.OutputImage"
+                            };
+
+                            foreach (string recordName in possibleRecordNames)
+                            {
+                                try
                                 {
-                                    txtOutputs.AppendText($"使用Record: {recordName}\r\n");
-                                    break;
+                                    displayRecord = lastRunRecord.SubRecords[recordName];
+                                    if (displayRecord != null)
+                                    {
+                                        txtOutputs.AppendText($"使用Record: {recordName}\r\n");
+                                        break;
+                                    }
                                 }
+                                catch { }
                             }
-                            catch { }
-                        }
 
-                        // 如果没找到指定名称的记录，使用第一个SubRecord
-                        if (displayRecord == null && lastRunRecord.SubRecords.Count > 0)
-                        {
-                            displayRecord = lastRunRecord.SubRecords[0];
-                            txtOutputs.AppendText($"使用默认Record: {displayRecord?.RecordKey}\r\n");
-                        }
+                            // 如果没找到指定名称的记录，使用第一个SubRecord
+                            if (displayRecord == null && lastRunRecord.SubRecords.Count > 0)
+                            {
+                                displayRecord = lastRunRecord.SubRecords[0];
+                                txtOutputs.AppendText($"使用默认Record: {displayRecord?.RecordKey}\r\n");
+                            }
 
-                        if (displayRecord != null)
+                            if (displayRecord != null)
+                            {
+                                cogRecordDisplay2.Record = displayRecord;
+                                cogRecordDisplay2.Fit(true);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // NG时显示原图，避免残留上次OK的结果
+                        ICogImage currentImage = GetCurrentCogImage();
+                        if (currentImage != null)
                         {
-                            cogRecordDisplay2.Record = displayRecord;
+                            cogRecordDisplay2.Record = null;
+                            cogRecordDisplay2.Image = currentImage;
                             cogRecordDisplay2.Fit(true);
+                            txtOutputs.AppendText("NG - 显示原图\r\n");
                         }
                     }
                 }
@@ -512,49 +780,115 @@ namespace VisionInspectionSystem.Forms
 
         #endregion
 
-        #region 私有方法 - 配方保存/加载
+        #region 私有方法 - 版型保存/加载
 
         /// <summary>
-        /// 保存配方配置
+        /// 加载版型列表到下拉框
         /// </summary>
-        private void SaveRecipeConfig()
+        private void LoadRecipeList()
+        {
+            _isLoadingRecipe = true;
+            cboCurrentRecipe.Items.Clear();
+            _recipeList.Clear();
+
+            if (Directory.Exists(_recipeConfigDir))
+            {
+                var files = Directory.GetFiles(_recipeConfigDir, "*.ini");
+                foreach (var file in files)
+                {
+                    var recipe = LoadRecipeInfo(file);
+                    if (recipe != null)
+                    {
+                        _recipeList.Add(recipe);
+                        cboCurrentRecipe.Items.Add(recipe);
+                    }
+                }
+            }
+
+            _isLoadingRecipe = false;
+        }
+
+        /// <summary>
+        /// 从文件读取版型信息
+        /// </summary>
+        private RecipeInfo LoadRecipeInfo(string filePath)
+        {
+            try
+            {
+                var recipe = new RecipeInfo
+                {
+                    FilePath = filePath,
+                    Name = Path.GetFileNameWithoutExtension(filePath)
+                };
+
+                foreach (string line in File.ReadAllLines(filePath))
+                {
+                    if (line.StartsWith("VppPath="))
+                    {
+                        recipe.VppPath = line.Substring("VppPath=".Length).Trim();
+                    }
+                    else if (line.StartsWith("ImagePath="))
+                    {
+                        recipe.ImagePath = line.Substring("ImagePath=".Length).Trim();
+                    }
+                }
+
+                return recipe;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 保存配方到文件
+        /// </summary>
+        private void SaveRecipeToFile(string filePath, string recipeName)
         {
             try
             {
                 // 确保目录存在
-                string configDir = Path.GetDirectoryName(_recipeConfigPath);
+                string configDir = Path.GetDirectoryName(filePath);
                 if (!Directory.Exists(configDir))
                 {
                     Directory.CreateDirectory(configDir);
                 }
 
                 // 写入配置
-                using (StreamWriter writer = new StreamWriter(_recipeConfigPath))
+                using (StreamWriter writer = new StreamWriter(filePath))
                 {
-                    writer.WriteLine("[OfflineTestRecipe]");
+                    writer.WriteLine($"[Recipe]");
+                    writer.WriteLine($"Name={recipeName}");
                     writer.WriteLine($"VppPath={_currentVppPath ?? ""}");
                     writer.WriteLine($"ImagePath={_currentImagePath ?? ""}");
                     writer.WriteLine($"SaveTime={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 }
 
-                LogHelper.Info("OfflineTest", $"配方保存成功: {_recipeConfigPath}");
+                lblStatus.Text = $"版型 \"{recipeName}\" 保存成功";
+                txtOutputs.AppendText($"\r\n版型 \"{recipeName}\" 保存成功: {filePath}\r\n");
+                MessageBox.Show($"版型 \"{recipeName}\" 保存成功!", "保存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                LogHelper.Info("OfflineTest", $"版型保存成功: {recipeName} -> {filePath}");
             }
             catch (Exception ex)
             {
-                LogHelper.Error("OfflineTest", $"保存配方失败: {ex.Message}");
+                lblStatus.Text = "版型保存失败";
+                MessageBox.Show($"保存版型失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogHelper.Error("OfflineTest", $"保存版型失败: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// 加载配方配置
+        /// 从文件加载配方
         /// </summary>
-        private void LoadRecipeConfig()
+        private void LoadRecipeFromFile(string filePath, string recipeName)
         {
             try
             {
-                if (!File.Exists(_recipeConfigPath))
+                if (!File.Exists(filePath))
                 {
-                    txtOutputs.Text = "欢迎使用VisionPro离线测试工具\r\n\r\n请先加载VPP文件和测试图像。\r\n";
+                    MessageBox.Show($"版型文件不存在: {filePath}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
@@ -562,7 +896,7 @@ namespace VisionInspectionSystem.Forms
                 string imagePath = "";
 
                 // 读取配置
-                foreach (string line in File.ReadAllLines(_recipeConfigPath))
+                foreach (string line in File.ReadAllLines(filePath))
                 {
                     if (line.StartsWith("VppPath="))
                     {
@@ -574,66 +908,123 @@ namespace VisionInspectionSystem.Forms
                     }
                 }
 
-                // 自动加载VPP文件
-                if (!string.IsNullOrEmpty(vppPath) && File.Exists(vppPath))
+                txtOutputs.Text = $"正在加载版型 \"{recipeName}\"...\r\n";
+                lblStatus.Text = $"正在加载版型 \"{recipeName}\"...";
+
+                // 加载VPP文件
+                if (!string.IsNullOrEmpty(vppPath))
                 {
-                    txtOutputs.Text = $"正在加载上次的配方...\r\nVPP: {vppPath}\r\n";
-
-                    if (_processor.LoadJob(vppPath))
+                    if (File.Exists(vppPath))
                     {
-                        _currentVppPath = vppPath;
-                        lblVppPath.Text = Path.GetFileName(vppPath);
-                        lblVppPath.ToolTipText = vppPath;
+                        txtOutputs.AppendText($"VPP: {vppPath}\r\n");
 
-                        txtOutputs.AppendText("VPP加载成功!\r\n");
-                        txtOutputs.AppendText(_processor.GetInputOutputSummary());
-                        FillInputsGrid();
+                        if (_processor.LoadJob(vppPath))
+                        {
+                            _currentVppPath = vppPath;
+                            lblVppPathDisplay.Text = vppPath;
+
+                            txtOutputs.AppendText("VPP加载成功!\r\n");
+                            txtOutputs.AppendText(_processor.GetInputOutputSummary());
+                            FillInputsGrid();
+                        }
+                        else
+                        {
+                            txtOutputs.AppendText("VPP加载失败!\r\n");
+                        }
+                    }
+                    else
+                    {
+                        txtOutputs.AppendText($"VPP文件不存在: {vppPath}\r\n");
                     }
                 }
 
-                // 自动加载图像文件
-                if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+                // 加载图像文件
+                if (!string.IsNullOrEmpty(imagePath))
                 {
-                    txtOutputs.AppendText($"\r\n正在加载图像: {imagePath}\r\n");
-
-                    try
+                    if (File.Exists(imagePath))
                     {
-                        _imageFile = new CogImageFile();
-                        _imageFile.Open(imagePath, CogImageFileModeConstants.Read);
+                        txtOutputs.AppendText($"\r\n正在加载图像: {imagePath}\r\n");
 
-                        _maxImageCount = _imageFile.Count;
-                        _currentImageIndex = 0;
-                        _currentImagePath = imagePath;
+                        try
+                        {
+                            CloseImageFile();
+                            _imageFile = new CogImageFile();
+                            _imageFile.Open(imagePath, CogImageFileModeConstants.Read);
 
-                        lblImagePath.Text = Path.GetFileName(imagePath);
-                        lblImagePath.ToolTipText = imagePath;
+                            _maxImageCount = _imageFile.Count;
+                            _currentImageIndex = 0;
+                            _currentImagePath = imagePath;
+                            _hasRunOnce = false;
 
-                        UpdateImageIndexLabel();
-                        DisplayCurrentImage();
+                            lblImagePathDisplay.Text = imagePath;
 
-                        txtOutputs.AppendText($"图像加载成功! 共 {_maxImageCount} 张\r\n");
+                            UpdateImageIndexLabel();
+                            DisplayCurrentImage();
+
+                            txtOutputs.AppendText($"图像加载成功! 共 {_maxImageCount} 张\r\n");
+                        }
+                        catch (Exception ex)
+                        {
+                            txtOutputs.AppendText($"图像加载失败: {ex.Message}\r\n");
+                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        txtOutputs.AppendText($"图像加载失败: {ex.Message}\r\n");
+                        txtOutputs.AppendText($"图像文件不存在: {imagePath}\r\n");
                     }
                 }
 
                 txtOutputs.AppendText("\r\n========================================\r\n");
-                txtOutputs.AppendText("配方加载完成，可以开始检测。\r\n");
+                txtOutputs.AppendText($"版型 \"{recipeName}\" 加载完成。\r\n");
 
-                LogHelper.Info("OfflineTest", "配方加载成功");
+                UpdateUI();
+                lblStatus.Text = $"版型 \"{recipeName}\" 加载完成";
+
+                LogHelper.Info("OfflineTest", $"版型加载成功: {recipeName}");
             }
             catch (Exception ex)
             {
-                LogHelper.Error("OfflineTest", $"加载配方失败: {ex.Message}");
-                txtOutputs.Text = $"加载配方失败: {ex.Message}\r\n\r\n请手动加载VPP文件和测试图像。\r\n";
+                LogHelper.Error("OfflineTest", $"加载版型失败: {ex.Message}");
+                txtOutputs.Text = $"加载版型失败: {ex.Message}\r\n";
+                lblStatus.Text = "版型加载失败";
+                MessageBox.Show($"加载版型失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         #endregion
 
         #region 私有方法 - 辅助
+
+        /// <summary>
+        /// 显示输入对话框
+        /// </summary>
+        private string ShowInputDialog(string title, string prompt, string defaultValue)
+        {
+            Form inputForm = new Form()
+            {
+                Width = 400,
+                Height = 150,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = title,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            Label lblPrompt = new Label() { Left = 20, Top = 20, Width = 340, Text = prompt };
+            TextBox txtInput = new TextBox() { Left = 20, Top = 45, Width = 340, Text = defaultValue };
+            Button btnOk = new Button() { Text = "确定", Left = 200, Width = 75, Top = 80, DialogResult = DialogResult.OK };
+            Button btnCancel = new Button() { Text = "取消", Left = 285, Width = 75, Top = 80, DialogResult = DialogResult.Cancel };
+
+            inputForm.Controls.Add(lblPrompt);
+            inputForm.Controls.Add(txtInput);
+            inputForm.Controls.Add(btnOk);
+            inputForm.Controls.Add(btnCancel);
+            inputForm.AcceptButton = btnOk;
+            inputForm.CancelButton = btnCancel;
+
+            return inputForm.ShowDialog() == DialogResult.OK ? txtInput.Text.Trim() : null;
+        }
 
         /// <summary>
         /// 填充输入参数到表格
@@ -681,7 +1072,6 @@ namespace VisionInspectionSystem.Forms
             bool hasImage = _imageFile != null && _maxImageCount > 0;
 
             btnRun.Enabled = _processor.IsJobLoaded && hasImage;
-            btnVppInfo.Enabled = _processor.IsJobLoaded;
             btnPrevImage.Enabled = hasImage && _maxImageCount > 1;
             btnNextImage.Enabled = hasImage && _maxImageCount > 1;
         }
