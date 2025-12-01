@@ -7,6 +7,7 @@ using VisionInspectionSystem.DAL;
 
 // VisionPro 引用
 using Cognex.VisionPro;
+using Cognex.VisionPro.QuickBuild;
 using Cognex.VisionPro.ToolBlock;
 using Cognex.VisionPro.ImageFile;
 

@@ -123,17 +123,9 @@ namespace VisionInspectionSystem.Forms
             //
             // cogRecordDisplay1
             //
-            this.cogRecordDisplay1.ColorMapLowerClipPercent = 0D;
-            this.cogRecordDisplay1.ColorMapLowerRoiLimit = 0D;
-            this.cogRecordDisplay1.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
-            this.cogRecordDisplay1.ColorMapUpperClipPercent = 100D;
-            this.cogRecordDisplay1.ColorMapUpperRoiLimit = 1D;
             this.cogRecordDisplay1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cogRecordDisplay1.Location = new System.Drawing.Point(3, 17);
-            this.cogRecordDisplay1.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
-            this.cogRecordDisplay1.MouseWheelSensitivity = 1D;
             this.cogRecordDisplay1.Name = "cogRecordDisplay1";
-            this.cogRecordDisplay1.OcxState = null;
             this.cogRecordDisplay1.Size = new System.Drawing.Size(389, 530);
             this.cogRecordDisplay1.TabIndex = 0;
             //
@@ -150,17 +142,9 @@ namespace VisionInspectionSystem.Forms
             //
             // cogRecordDisplay2
             //
-            this.cogRecordDisplay2.ColorMapLowerClipPercent = 0D;
-            this.cogRecordDisplay2.ColorMapLowerRoiLimit = 0D;
-            this.cogRecordDisplay2.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
-            this.cogRecordDisplay2.ColorMapUpperClipPercent = 100D;
-            this.cogRecordDisplay2.ColorMapUpperRoiLimit = 1D;
             this.cogRecordDisplay2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cogRecordDisplay2.Location = new System.Drawing.Point(3, 17);
-            this.cogRecordDisplay2.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
-            this.cogRecordDisplay2.MouseWheelSensitivity = 1D;
             this.cogRecordDisplay2.Name = "cogRecordDisplay2";
-            this.cogRecordDisplay2.OcxState = null;
             this.cogRecordDisplay2.Size = new System.Drawing.Size(395, 530);
             this.cogRecordDisplay2.TabIndex = 0;
             //

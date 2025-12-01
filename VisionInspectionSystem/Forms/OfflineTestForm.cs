@@ -1,11 +1,16 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using VisionInspectionSystem.BLL;
 using VisionInspectionSystem.HAL;
 using VisionInspectionSystem.Models;
 using VisionInspectionSystem.DAL;
+
+// VisionPro 引用
+using Cognex.VisionPro;
+using Cognex.VisionPro.ImageFile;
 
 namespace VisionInspectionSystem.Forms
 {
@@ -14,26 +19,50 @@ namespace VisionInspectionSystem.Forms
     /// </summary>
     public partial class OfflineTestForm : Form
     {
+        #region 私有字段
+
         private VisionProProcessor _processor;
         private string _currentVppPath;
         private string _currentImagePath;
+
+        // 图像文件操作
+        private CogImageFile _imageFile;
+        private int _currentImageIndex;
+        private int _maxImageCount;
+
+        // 配方配置文件路径
+        private readonly string _recipeConfigPath;
+
+        #endregion
+
+        #region 构造函数
 
         public OfflineTestForm()
         {
             InitializeComponent();
             _processor = new VisionProProcessor();
+            _recipeConfigPath = Path.Combine(Application.StartupPath, "Config", "OfflineTestRecipe.ini");
         }
+
+        #endregion
+
+        #region 窗体事件
 
         private void OfflineTestForm_Load(object sender, EventArgs e)
         {
-            // 初始化界面
+            // 加载上次的配方设置
+            LoadRecipeConfig();
             UpdateUI();
         }
 
         private void OfflineTestForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // 关闭图像文件
+            CloseImageFile();
             _processor?.Dispose();
         }
+
+        #endregion
 
         #region 按钮事件
 
@@ -44,8 +73,14 @@ namespace VisionInspectionSystem.Forms
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Title = "选择VisionPro作业文件";
+                ofd.Title = "选择VisionPro ToolBlock文件";
                 ofd.Filter = "VisionPro文件|*.vpp|所有文件|*.*";
+
+                // 如果有上次路径，设置初始目录
+                if (!string.IsNullOrEmpty(_currentVppPath) && File.Exists(_currentVppPath))
+                {
+                    ofd.InitialDirectory = Path.GetDirectoryName(_currentVppPath);
+                }
 
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
@@ -55,18 +90,21 @@ namespace VisionInspectionSystem.Forms
         }
 
         /// <summary>
-        /// 加载测试图像
+        /// 加载测试图像（支持IDB/CDB/BMP/TIFF等）
         /// </summary>
         private void btnLoadImage_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Title = "选择测试图像";
-                ofd.Filter = "图像文件|*.bmp;*.jpg;*.jpeg;*.png;*.tiff;*.tif|所有文件|*.*";
+                ofd.Title = "选择测试图像或图像数据库";
+                ofd.Filter = "所有支持格式|*.idb;*.cdb;*.bmp;*.tiff;*.tif;*.jpg;*.jpeg;*.png|" +
+                             "VisionPro图像数据库|*.idb;*.cdb|" +
+                             "图像文件|*.bmp;*.tiff;*.tif;*.jpg;*.jpeg;*.png|" +
+                             "所有文件|*.*";
 
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
-                    LoadTestImage(ofd.FileName);
+                    LoadImageFile(ofd.FileName);
                 }
             }
         }
@@ -82,13 +120,43 @@ namespace VisionInspectionSystem.Forms
                 return;
             }
 
-            if (string.IsNullOrEmpty(_currentImagePath))
+            if (_imageFile == null || _maxImageCount == 0)
             {
                 MessageBox.Show("请先加载测试图像", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             RunInspection();
+        }
+
+        /// <summary>
+        /// 上一张图像
+        /// </summary>
+        private void btnPrevImage_Click(object sender, EventArgs e)
+        {
+            if (_imageFile == null || _maxImageCount == 0) return;
+
+            _currentImageIndex--;
+            if (_currentImageIndex < 0)
+            {
+                _currentImageIndex = _maxImageCount - 1;
+            }
+            DisplayCurrentImage();
+        }
+
+        /// <summary>
+        /// 下一张图像
+        /// </summary>
+        private void btnNextImage_Click(object sender, EventArgs e)
+        {
+            if (_imageFile == null || _maxImageCount == 0) return;
+
+            _currentImageIndex++;
+            if (_currentImageIndex >= _maxImageCount)
+            {
+                _currentImageIndex = 0;
+            }
+            DisplayCurrentImage();
         }
 
         /// <summary>
@@ -113,15 +181,17 @@ namespace VisionInspectionSystem.Forms
         {
             txtOutputs.Clear();
             dgvOutputs.Rows.Clear();
-            picResult.Image = null;
+            cogRecordDisplay2.Record = null;
+            cogRecordDisplay2.Image = null;
             lblResult.Text = "-";
             lblResult.BackColor = SystemColors.Control;
+            lblResult.ForeColor = SystemColors.ControlText;
             lblRunTime.Text = "-";
         }
 
         #endregion
 
-        #region 私有方法
+        #region 私有方法 - VPP加载
 
         /// <summary>
         /// 加载VPP文件
@@ -136,12 +206,15 @@ namespace VisionInspectionSystem.Forms
                 if (_processor.LoadJob(path))
                 {
                     _currentVppPath = path;
-                    lblVppPath.Text = System.IO.Path.GetFileName(path);
+                    lblVppPath.Text = Path.GetFileName(path);
                     lblVppPath.ToolTipText = path;
 
                     // 显示输入输出信息
                     StringBuilder sb = new StringBuilder();
-                    sb.AppendLine($"VPP文件加载成功: {path}");
+                    sb.AppendLine("========================================");
+                    sb.AppendLine("VPP文件加载成功!");
+                    sb.AppendLine("========================================");
+                    sb.AppendLine($"文件: {path}");
                     sb.AppendLine();
                     sb.AppendLine(_processor.GetInputOutputSummary());
 
@@ -150,12 +223,19 @@ namespace VisionInspectionSystem.Forms
                     // 填充输入参数到DataGridView
                     FillInputsGrid();
 
+                    // 保存配方配置
+                    SaveRecipeConfig();
+
                     UpdateUI();
+
+                    // 提示加载成功
+                    MessageBox.Show($"VPP文件加载成功!\n\n文件: {Path.GetFileName(path)}\n输入参数: {_processor.InputNames.Count}个\n输出参数: {_processor.OutputNames.Count}个\n\n配方已保存，下次启动将自动加载。",
+                        "加载成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
-                    txtOutputs.Text = "VPP文件加载失败！";
-                    MessageBox.Show("VPP文件加载失败", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    txtOutputs.Text = "VPP文件加载失败！请确保文件是有效的ToolBlock格式。";
+                    MessageBox.Show("VPP文件加载失败！\n请确保文件是有效的ToolBlock格式。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
@@ -169,33 +249,126 @@ namespace VisionInspectionSystem.Forms
             }
         }
 
+        #endregion
+
+        #region 私有方法 - 图像文件操作
+
         /// <summary>
-        /// 加载测试图像
+        /// 加载图像文件（支持IDB/CDB/BMP/TIFF/JPG/PNG）
         /// </summary>
-        private void LoadTestImage(string path)
+        private void LoadImageFile(string path)
         {
             try
             {
-                using (var img = new Bitmap(path))
-                {
-                    // 复制图像以避免文件锁定
-                    picSource.Image?.Dispose();
-                    picSource.Image = new Bitmap(img);
-                }
+                Cursor = Cursors.WaitCursor;
 
+                // 先关闭之前的文件
+                CloseImageFile();
+
+                // 使用CogImageFile统一处理各种图像格式
+                _imageFile = new CogImageFile();
+                _imageFile.Open(path, CogImageFileModeConstants.Read);
+
+                _maxImageCount = _imageFile.Count;
+                _currentImageIndex = 0;
                 _currentImagePath = path;
-                lblImagePath.Text = System.IO.Path.GetFileName(path);
+
+                lblImagePath.Text = Path.GetFileName(path);
                 lblImagePath.ToolTipText = path;
 
-                txtOutputs.AppendText($"\r\n已加载图像: {path}\r\n");
+                // 更新图像索引显示
+                UpdateImageIndexLabel();
+
+                txtOutputs.AppendText($"\r\n========================================\r\n");
+                txtOutputs.AppendText($"图像文件加载成功!\r\n");
+                txtOutputs.AppendText($"文件: {path}\r\n");
+                txtOutputs.AppendText($"图像数量: {_maxImageCount}\r\n");
+                txtOutputs.AppendText($"========================================\r\n");
+
+                // 显示第一张图像
+                DisplayCurrentImage();
+
+                // 保存配方配置
+                SaveRecipeConfig();
 
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"加载图像失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                txtOutputs.AppendText($"加载图像失败: {ex.Message}\r\n");
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
             }
         }
+
+        /// <summary>
+        /// 关闭图像文件
+        /// </summary>
+        private void CloseImageFile()
+        {
+            if (_imageFile != null)
+            {
+                try
+                {
+                    _imageFile.Close();
+                }
+                catch { }
+                _imageFile = null;
+            }
+            _maxImageCount = 0;
+            _currentImageIndex = 0;
+        }
+
+        /// <summary>
+        /// 显示当前图像
+        /// </summary>
+        private void DisplayCurrentImage()
+        {
+            if (_imageFile == null || _maxImageCount == 0) return;
+
+            try
+            {
+                // 获取当前图像
+                ICogImage cogImage = _imageFile[_currentImageIndex];
+
+                // 使用CogRecordDisplay显示原始图像
+                cogRecordDisplay1.Image = cogImage;
+                cogRecordDisplay1.Fit(true);
+
+                // 更新索引标签
+                UpdateImageIndexLabel();
+            }
+            catch (Exception ex)
+            {
+                txtOutputs.AppendText($"显示图像失败: {ex.Message}\r\n");
+            }
+        }
+
+        /// <summary>
+        /// 更新图像索引标签
+        /// </summary>
+        private void UpdateImageIndexLabel()
+        {
+            lblImageIndex.Text = $"第 {_currentImageIndex + 1} / {_maxImageCount} 张";
+        }
+
+        /// <summary>
+        /// 获取当前CogImage
+        /// </summary>
+        private ICogImage GetCurrentCogImage()
+        {
+            if (_imageFile == null || _maxImageCount == 0)
+                return null;
+
+            return _imageFile[_currentImageIndex];
+        }
+
+        #endregion
+
+        #region 私有方法 - 检测运行
 
         /// <summary>
         /// 运行检测
@@ -207,12 +380,19 @@ namespace VisionInspectionSystem.Forms
                 Cursor = Cursors.WaitCursor;
                 txtOutputs.AppendText("\r\n--- 开始检测 ---\r\n");
 
-                // 执行离线检测
-                InspectionResult result = _processor.RunOffline(_currentImagePath);
+                // 获取当前CogImage
+                ICogImage cogImage = GetCurrentCogImage();
+                if (cogImage == null)
+                {
+                    txtOutputs.AppendText("无法获取当前图像\r\n");
+                    return;
+                }
+
+                // 执行检测（直接传入CogImage）
+                InspectionResult result = _processor.Run(cogImage);
 
                 if (result != null)
                 {
-                    // 显示结果
                     DisplayResult(result);
                 }
                 else
@@ -242,11 +422,61 @@ namespace VisionInspectionSystem.Forms
             lblResult.ForeColor = Color.White;
             lblRunTime.Text = $"{result.RunTime:F1} ms";
 
-            // 显示结果图像
-            if (result.ResultImage != null)
+            // 使用CogRecordDisplay显示结果图像和图形叠加
+            try
             {
-                picResult.Image?.Dispose();
-                picResult.Image = result.ResultImage;
+                if (_processor.ToolBlock != null)
+                {
+                    // 获取LastRunRecord并显示
+                    // 使用SubRecords[recordName]方式获取指定的输出图像记录
+                    // 例如: "LastRun.CogFixtureTool1.OutputImage"
+                    ICogRecord lastRunRecord = _processor.ToolBlock.CreateLastRunRecord();
+                    if (lastRunRecord != null && lastRunRecord.SubRecords != null)
+                    {
+                        // 尝试获取指定名称的记录，如果没有配置则使用第一个
+                        ICogRecord displayRecord = null;
+
+                        // 可以通过配置指定要显示的Record名称
+                        // 默认尝试常见的输出图像记录名称
+                        string[] possibleRecordNames = new string[]
+                        {
+                            "LastRun.CogFixtureTool1.OutputImage",
+                            "LastRun.OutputImage",
+                            "CogFixtureTool1.OutputImage"
+                        };
+
+                        foreach (string recordName in possibleRecordNames)
+                        {
+                            try
+                            {
+                                displayRecord = lastRunRecord.SubRecords[recordName];
+                                if (displayRecord != null)
+                                {
+                                    txtOutputs.AppendText($"使用Record: {recordName}\r\n");
+                                    break;
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // 如果没找到指定名称的记录，使用第一个SubRecord
+                        if (displayRecord == null && lastRunRecord.SubRecords.Count > 0)
+                        {
+                            displayRecord = lastRunRecord.SubRecords[0];
+                            txtOutputs.AppendText($"使用默认Record: {displayRecord?.RecordKey}\r\n");
+                        }
+
+                        if (displayRecord != null)
+                        {
+                            cogRecordDisplay2.Record = displayRecord;
+                            cogRecordDisplay2.Fit(true);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                txtOutputs.AppendText($"显示结果图像失败: {ex.Message}\r\n");
             }
 
             // 填充输出参数到DataGridView
@@ -279,6 +509,131 @@ namespace VisionInspectionSystem.Forms
             txtOutputs.SelectionStart = txtOutputs.TextLength;
             txtOutputs.ScrollToCaret();
         }
+
+        #endregion
+
+        #region 私有方法 - 配方保存/加载
+
+        /// <summary>
+        /// 保存配方配置
+        /// </summary>
+        private void SaveRecipeConfig()
+        {
+            try
+            {
+                // 确保目录存在
+                string configDir = Path.GetDirectoryName(_recipeConfigPath);
+                if (!Directory.Exists(configDir))
+                {
+                    Directory.CreateDirectory(configDir);
+                }
+
+                // 写入配置
+                using (StreamWriter writer = new StreamWriter(_recipeConfigPath))
+                {
+                    writer.WriteLine("[OfflineTestRecipe]");
+                    writer.WriteLine($"VppPath={_currentVppPath ?? ""}");
+                    writer.WriteLine($"ImagePath={_currentImagePath ?? ""}");
+                    writer.WriteLine($"SaveTime={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                }
+
+                LogHelper.Info("OfflineTest", $"配方保存成功: {_recipeConfigPath}");
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Error("OfflineTest", $"保存配方失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 加载配方配置
+        /// </summary>
+        private void LoadRecipeConfig()
+        {
+            try
+            {
+                if (!File.Exists(_recipeConfigPath))
+                {
+                    txtOutputs.Text = "欢迎使用VisionPro离线测试工具\r\n\r\n请先加载VPP文件和测试图像。\r\n";
+                    return;
+                }
+
+                string vppPath = "";
+                string imagePath = "";
+
+                // 读取配置
+                foreach (string line in File.ReadAllLines(_recipeConfigPath))
+                {
+                    if (line.StartsWith("VppPath="))
+                    {
+                        vppPath = line.Substring("VppPath=".Length).Trim();
+                    }
+                    else if (line.StartsWith("ImagePath="))
+                    {
+                        imagePath = line.Substring("ImagePath=".Length).Trim();
+                    }
+                }
+
+                // 自动加载VPP文件
+                if (!string.IsNullOrEmpty(vppPath) && File.Exists(vppPath))
+                {
+                    txtOutputs.Text = $"正在加载上次的配方...\r\nVPP: {vppPath}\r\n";
+
+                    if (_processor.LoadJob(vppPath))
+                    {
+                        _currentVppPath = vppPath;
+                        lblVppPath.Text = Path.GetFileName(vppPath);
+                        lblVppPath.ToolTipText = vppPath;
+
+                        txtOutputs.AppendText("VPP加载成功!\r\n");
+                        txtOutputs.AppendText(_processor.GetInputOutputSummary());
+                        FillInputsGrid();
+                    }
+                }
+
+                // 自动加载图像文件
+                if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+                {
+                    txtOutputs.AppendText($"\r\n正在加载图像: {imagePath}\r\n");
+
+                    try
+                    {
+                        _imageFile = new CogImageFile();
+                        _imageFile.Open(imagePath, CogImageFileModeConstants.Read);
+
+                        _maxImageCount = _imageFile.Count;
+                        _currentImageIndex = 0;
+                        _currentImagePath = imagePath;
+
+                        lblImagePath.Text = Path.GetFileName(imagePath);
+                        lblImagePath.ToolTipText = imagePath;
+
+                        UpdateImageIndexLabel();
+                        DisplayCurrentImage();
+
+                        txtOutputs.AppendText($"图像加载成功! 共 {_maxImageCount} 张\r\n");
+                    }
+                    catch (Exception ex)
+                    {
+                        txtOutputs.AppendText($"图像加载失败: {ex.Message}\r\n");
+                    }
+                }
+
+                txtOutputs.AppendText("\r\n========================================\r\n");
+                txtOutputs.AppendText("配方加载完成，可以开始检测。\r\n");
+
+                LogHelper.Info("OfflineTest", "配方加载成功");
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Error("OfflineTest", $"加载配方失败: {ex.Message}");
+                txtOutputs.Text = $"加载配方失败: {ex.Message}\r\n\r\n请手动加载VPP文件和测试图像。\r\n";
+            }
+        }
+
+        #endregion
+
+        #region 私有方法 - 辅助
 
         /// <summary>
         /// 填充输入参数到表格
@@ -313,8 +668,8 @@ namespace VisionInspectionSystem.Forms
             if (value == null) return "null";
             if (value is double d) return d.ToString("F6");
             if (value is float f) return f.ToString("F6");
-            if (value is Cognex.VisionPro.ICogImage) return "[CogImage]";
-            if (value is Cognex.VisionPro.ICogGraphic) return "[CogGraphic]";
+            if (value is ICogImage) return "[CogImage]";
+            if (value is ICogGraphic) return "[CogGraphic]";
             return value.ToString();
         }
 
@@ -323,8 +678,12 @@ namespace VisionInspectionSystem.Forms
         /// </summary>
         private void UpdateUI()
         {
-            btnRun.Enabled = _processor.IsJobLoaded && !string.IsNullOrEmpty(_currentImagePath);
+            bool hasImage = _imageFile != null && _maxImageCount > 0;
+
+            btnRun.Enabled = _processor.IsJobLoaded && hasImage;
             btnVppInfo.Enabled = _processor.IsJobLoaded;
+            btnPrevImage.Enabled = hasImage && _maxImageCount > 1;
+            btnNextImage.Enabled = hasImage && _maxImageCount > 1;
         }
 
         #endregion
