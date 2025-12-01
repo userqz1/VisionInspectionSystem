@@ -7,12 +7,13 @@ using VisionInspectionSystem.DAL;
 
 // VisionPro 引用
 using Cognex.VisionPro;
-
+using Cognex.VisionPro.ToolBlock;
+using Cognex.VisionPro.ImageFile;
 
 namespace VisionInspectionSystem.HAL
 {
     /// <summary>
-    /// VisionPro处理器封装类 - 支持QuickBuild Job
+    /// VisionPro处理器封装类 - 使用CogToolBlock
     /// </summary>
     public class VisionProProcessor : IDisposable
     {
@@ -24,10 +25,9 @@ namespace VisionInspectionSystem.HAL
         private readonly object _lockObj = new object();
         private Stopwatch _stopwatch = new Stopwatch();
 
-        // VisionPro QuickBuild对象
-        private CogJobManager _jobManager;
-        private CogJob _job;
-        private CogJobIndependent _jobIndependent;
+        // VisionPro ToolBlock对象
+        private CogToolBlock _toolBlock;
+        private string _inputImageName = "OutputImage"; // 默认输入图像名称，可根据VPP调整
 
         #endregion
 
@@ -49,14 +49,18 @@ namespace VisionInspectionSystem.HAL
         public double LastRunTime { get; private set; }
 
         /// <summary>
-        /// JobManager对象（用于外部访问）
+        /// ToolBlock对象（用于外部访问）
         /// </summary>
-        public CogJobManager JobManager => _jobManager;
+        public CogToolBlock ToolBlock => _toolBlock;
 
         /// <summary>
-        /// 当前Job对象
+        /// 输入图像的参数名称
         /// </summary>
-        public CogJob Job => _job;
+        public string InputImageName
+        {
+            get => _inputImageName;
+            set => _inputImageName = value;
+        }
 
         /// <summary>
         /// 最后一次运行的所有输出参数
@@ -64,7 +68,12 @@ namespace VisionInspectionSystem.HAL
         public Dictionary<string, VppOutputItem> LastOutputs { get; private set; } = new Dictionary<string, VppOutputItem>();
 
         /// <summary>
-        /// Job中的所有输出名称列表
+        /// 所有输入参数名称列表
+        /// </summary>
+        public List<string> InputNames { get; private set; } = new List<string>();
+
+        /// <summary>
+        /// 所有输出参数名称列表
         /// </summary>
         public List<string> OutputNames { get; private set; } = new List<string>();
 
@@ -96,7 +105,7 @@ namespace VisionInspectionSystem.HAL
         #region 公共方法
 
         /// <summary>
-        /// 加载VisionPro作业文件（.vpp）
+        /// 加载VisionPro ToolBlock文件（.vpp）
         /// </summary>
         public bool LoadJob(string vppFilePath)
         {
@@ -122,27 +131,24 @@ namespace VisionInspectionSystem.HAL
                         UnloadJob();
                     }
 
-                    // 加载VPP文件
-                    _jobManager = (CogJobManager)CogSerializer.LoadObjectFromFile(vppFilePath);
+                    // 加载VPP文件为CogToolBlock
+                    _toolBlock = CogSerializer.LoadObjectFromFile(vppFilePath) as CogToolBlock;
 
-                    if (_jobManager == null || _jobManager.JobCount == 0)
+                    if (_toolBlock == null)
                     {
-                        OnError("VPP文件中没有Job");
+                        OnError("VPP文件不是有效的ToolBlock");
                         return false;
                     }
-
-                    // 获取第一个Job
-                    _job = _jobManager.Job(0);
-                    _jobIndependent = _job.OwnedIndependent;
 
                     _jobFilePath = vppFilePath;
                     _isJobLoaded = true;
 
-                    // 获取输出信息
-                    LogJobInfo();
+                    // 获取输入输出信息
+                    CollectInputOutputNames();
+                    LogToolBlockInfo();
 
-                    LogHelper.Info("VisionPro", $"加载作业成功: {vppFilePath}");
-                    LogHelper.Info("VisionPro", $"Job名称: {_job.Name}, Job数量: {_jobManager.JobCount}");
+                    LogHelper.Info("VisionPro", $"加载ToolBlock成功: {vppFilePath}");
+                    LogHelper.Info("VisionPro", $"输入参数: {InputNames.Count}个, 输出参数: {OutputNames.Count}个");
 
                     return true;
                 }
@@ -163,17 +169,15 @@ namespace VisionInspectionSystem.HAL
             {
                 lock (_lockObj)
                 {
-                    if (_jobManager != null)
+                    if (_toolBlock != null)
                     {
-                        _jobManager.Shutdown();
-                        _jobManager = null;
+                        _toolBlock = null;
                     }
 
-                    _job = null;
-                    _jobIndependent = null;
                     _jobFilePath = null;
                     _isJobLoaded = false;
                     LastOutputs.Clear();
+                    InputNames.Clear();
                     OutputNames.Clear();
 
                     LogHelper.Info("VisionPro", "卸载作业完成");
@@ -188,17 +192,38 @@ namespace VisionInspectionSystem.HAL
         }
 
         /// <summary>
-        /// 执行检测
+        /// 执行检测（传入Bitmap）
         /// </summary>
         public InspectionResult Run(Bitmap image)
         {
-            if (!_isJobLoaded || _job == null)
+            if (image == null)
+            {
+                OnError("输入图像为空");
+                return CreateErrorResult("输入图像为空");
+            }
+
+            // 将Bitmap转换为CogImage
+            ICogImage cogImage = ConvertBitmapToCogImage(image);
+            if (cogImage == null)
+            {
+                return CreateErrorResult("图像转换失败");
+            }
+
+            return Run(cogImage);
+        }
+
+        /// <summary>
+        /// 执行检测（传入ICogImage）
+        /// </summary>
+        public InspectionResult Run(ICogImage cogImage)
+        {
+            if (!_isJobLoaded || _toolBlock == null)
             {
                 OnError("未加载作业文件");
                 return CreateErrorResult("未加载作业文件");
             }
 
-            if (image == null)
+            if (cogImage == null)
             {
                 OnError("输入图像为空");
                 return CreateErrorResult("输入图像为空");
@@ -210,47 +235,46 @@ namespace VisionInspectionSystem.HAL
                 {
                     _stopwatch.Restart();
 
-                    // 将Bitmap转换为CogImage
-                    ICogImage cogImage = ConvertBitmapToCogImage(image);
-                    if (cogImage == null)
+                    // 设置输入图像
+                    if (_toolBlock.Inputs[_inputImageName] != null)
                     {
-                        return CreateErrorResult("图像转换失败");
+                        _toolBlock.Inputs[_inputImageName].Value = cogImage;
+                        LogHelper.Debug("VisionPro", $"设置输入图像: {_inputImageName}");
                     }
-
-                    // 设置输入图像并运行
-                    _jobManager.UserQueueFlush();
-                    _jobManager.UserResultQueueFlush();
-
-                    // 将图像放入队列
-                    _job.ImageQueueFlush();
-                    _jobIndependent.RealTimeQueueFlush();
-
-                    // 输入图像到Job
-                    ICogAcqInfo acqInfo = new CogAcqInfo();
-                    _jobManager.UserQueueAppend(cogImage, acqInfo, null);
-
-                    // 运行Job
-                    _jobManager.Run();
-
-                    // 等待完成并获取结果
-                    ICogJobResult jobResult = null;
-                    int timeout = 30000; // 30秒超时
-                    DateTime startTime = DateTime.Now;
-
-                    while ((DateTime.Now - startTime).TotalMilliseconds < timeout)
+                    else
                     {
-                        if (_jobManager.UserResultQueueCount > 0)
+                        // 尝试查找图像类型的输入
+                        bool imageSet = false;
+                        foreach (CogToolBlockTerminal input in _toolBlock.Inputs)
                         {
-                            jobResult = _jobManager.UserResultQueuePop();
-                            break;
+                            if (input.ValueType != null &&
+                                (input.ValueType.Name.Contains("ICogImage") ||
+                                 input.ValueType.Name.Contains("CogImage")))
+                            {
+                                input.Value = cogImage;
+                                LogHelper.Debug("VisionPro", $"设置输入图像: {input.Name}");
+                                imageSet = true;
+                                break;
+                            }
                         }
-                        System.Threading.Thread.Sleep(10);
+
+                        if (!imageSet)
+                        {
+                            LogHelper.Info("VisionPro", $"未找到输入图像参数 '{_inputImageName}'，尝试设置第一个输入");
+                            if (_toolBlock.Inputs.Count > 0)
+                            {
+                                _toolBlock.Inputs[0].Value = cogImage;
+                            }
+                        }
                     }
+
+                    // 运行ToolBlock
+                    _toolBlock.Run();
 
                     _stopwatch.Stop();
 
                     // 收集结果
-                    InspectionResult result = CollectJobResults(jobResult);
+                    InspectionResult result = CollectToolBlockResults();
                     result.RunTime = _stopwatch.Elapsed.TotalMilliseconds;
                     LastRunTime = result.RunTime;
 
@@ -298,16 +322,29 @@ namespace VisionInspectionSystem.HAL
         /// </summary>
         public string GetInputOutputSummary()
         {
-            if (_job == null) return "未加载作业";
+            if (_toolBlock == null) return "未加载作业";
 
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
-            sb.AppendLine($"=== Job信息 ===");
-            sb.AppendLine($"  Job名称: {_job.Name}");
-            sb.AppendLine($"  Job数量: {_jobManager?.JobCount ?? 0}");
+            sb.AppendLine($"=== ToolBlock信息 ===");
+            sb.AppendLine($"  名称: {_toolBlock.Name}");
             sb.AppendLine();
 
-            sb.AppendLine("=== 上次运行输出 ===");
+            sb.AppendLine("=== 输入参数 ===");
+            foreach (CogToolBlockTerminal input in _toolBlock.Inputs)
+            {
+                sb.AppendLine($"  [{input.ValueType?.Name ?? "unknown"}] {input.Name}");
+            }
+            sb.AppendLine();
+
+            sb.AppendLine("=== 输出参数 ===");
+            foreach (CogToolBlockTerminal output in _toolBlock.Outputs)
+            {
+                sb.AppendLine($"  [{output.ValueType?.Name ?? "unknown"}] {output.Name}");
+            }
+            sb.AppendLine();
+
+            sb.AppendLine("=== 上次运行输出值 ===");
             if (LastOutputs.Count > 0)
             {
                 foreach (var output in LastOutputs)
@@ -324,11 +361,44 @@ namespace VisionInspectionSystem.HAL
         }
 
         /// <summary>
+        /// 获取所有输入参数（用于UI显示）
+        /// </summary>
+        public List<VppInputItem> GetAllInputs()
+        {
+            var inputs = new List<VppInputItem>();
+
+            if (!_isJobLoaded || _toolBlock == null)
+            {
+                return inputs;
+            }
+
+            try
+            {
+                foreach (CogToolBlockTerminal input in _toolBlock.Inputs)
+                {
+                    inputs.Add(new VppInputItem
+                    {
+                        Name = input.Name,
+                        ValueType = input.ValueType?.Name ?? "unknown",
+                        Value = input.Value,
+                        Description = ""
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Error("VisionPro", $"获取输入参数失败: {ex.Message}");
+            }
+
+            return inputs;
+        }
+
+        /// <summary>
         /// 保存作业
         /// </summary>
         public bool SaveJob(string vppFilePath)
         {
-            if (!_isJobLoaded || _jobManager == null)
+            if (!_isJobLoaded || _toolBlock == null)
             {
                 OnError("没有已加载的作业");
                 return false;
@@ -336,7 +406,7 @@ namespace VisionInspectionSystem.HAL
 
             try
             {
-                CogSerializer.SaveObjectToFile(_jobManager, vppFilePath);
+                CogSerializer.SaveObjectToFile(_toolBlock, vppFilePath);
                 LogHelper.Info("VisionPro", $"保存作业成功: {vppFilePath}");
                 return true;
             }
@@ -367,15 +437,113 @@ namespace VisionInspectionSystem.HAL
         }
 
         /// <summary>
-        /// 记录Job信息到日志
+        /// 收集输入输出参数名称
         /// </summary>
-        private void LogJobInfo()
+        private void CollectInputOutputNames()
         {
-            if (_job == null) return;
+            InputNames.Clear();
+            OutputNames.Clear();
 
-            LogHelper.Info("VisionPro", $"--- Job信息 ---");
-            LogHelper.Info("VisionPro", $"  名称: {_job.Name}");
-            LogHelper.Info("VisionPro", $"  Job数量: {_jobManager?.JobCount ?? 0}");
+            if (_toolBlock == null) return;
+
+            foreach (CogToolBlockTerminal input in _toolBlock.Inputs)
+            {
+                InputNames.Add(input.Name);
+            }
+
+            foreach (CogToolBlockTerminal output in _toolBlock.Outputs)
+            {
+                OutputNames.Add(output.Name);
+            }
+        }
+
+        /// <summary>
+        /// 记录ToolBlock信息到日志
+        /// </summary>
+        private void LogToolBlockInfo()
+        {
+            if (_toolBlock == null) return;
+
+            LogHelper.Info("VisionPro", $"--- ToolBlock信息 ---");
+            LogHelper.Info("VisionPro", $"  名称: {_toolBlock.Name}");
+            LogHelper.Info("VisionPro", $"  输入参数数量: {_toolBlock.Inputs.Count}");
+            LogHelper.Info("VisionPro", $"  输出参数数量: {_toolBlock.Outputs.Count}");
+
+            LogHelper.Info("VisionPro", "  输入参数:");
+            foreach (CogToolBlockTerminal input in _toolBlock.Inputs)
+            {
+                LogHelper.Info("VisionPro", $"    [{input.ValueType?.Name}] {input.Name}");
+            }
+
+            LogHelper.Info("VisionPro", "  输出参数:");
+            foreach (CogToolBlockTerminal output in _toolBlock.Outputs)
+            {
+                LogHelper.Info("VisionPro", $"    [{output.ValueType?.Name}] {output.Name}");
+            }
+        }
+
+        /// <summary>
+        /// 收集ToolBlock运行结果
+        /// </summary>
+        private InspectionResult CollectToolBlockResults()
+        {
+            InspectionResult result = new InspectionResult();
+            LastOutputs.Clear();
+
+            try
+            {
+                // 获取运行状态
+                result.IsPass = (_toolBlock.RunStatus.Result == CogToolResultConstants.Accept);
+                result.Message = _toolBlock.RunStatus.Message ?? (result.IsPass ? "OK" : "NG");
+
+                // 收集所有输出参数
+                foreach (CogToolBlockTerminal output in _toolBlock.Outputs)
+                {
+                    try
+                    {
+                        object value = output.Value;
+                        string typeName = value?.GetType().Name ?? output.ValueType?.Name ?? "null";
+
+                        LastOutputs[output.Name] = new VppOutputItem
+                        {
+                            Name = output.Name,
+                            ValueType = typeName,
+                            Value = value,
+                            Description = ""
+                        };
+
+                        result.ExtraData[output.Name] = value;
+
+                        // 解析常见输出
+                        ParseCommonOutput(result, output.Name, value);
+
+                        // 检查是否是图像
+                        if (value is ICogImage cogImage && result.ResultImage == null)
+                        {
+                            try
+                            {
+                                result.ResultImage = cogImage.ToBitmap();
+                            }
+                            catch { }
+                        }
+
+                        LogHelper.Debug("VisionPro", $"输出: [{typeName}] {output.Name} = {FormatValue(value)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.Debug("VisionPro", $"获取输出 {output.Name} 失败: {ex.Message}");
+                    }
+                }
+
+                LogHelper.Info("VisionPro", $"收集到 {LastOutputs.Count} 个输出参数");
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Error("VisionPro", $"收集结果失败: {ex.Message}");
+                result.Message = ex.Message;
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -391,6 +559,7 @@ namespace VisionInspectionSystem.HAL
                 }
                 else
                 {
+                    // 转换为24位RGB
                     Bitmap rgb24 = new Bitmap(bitmap.Width, bitmap.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
                     using (Graphics g = Graphics.FromImage(rgb24))
                     {
@@ -403,103 +572,6 @@ namespace VisionInspectionSystem.HAL
             {
                 LogHelper.Error("VisionPro", $"图像转换失败: {ex.Message}");
                 return null;
-            }
-        }
-
-        /// <summary>
-        /// 收集Job运行结果
-        /// </summary>
-        private InspectionResult CollectJobResults(ICogJobResult jobResult)
-        {
-            InspectionResult result = new InspectionResult();
-            LastOutputs.Clear();
-
-            try
-            {
-                if (jobResult == null)
-                {
-                    result.IsPass = false;
-                    result.Message = "未获取到Job结果（超时或失败）";
-                    return result;
-                }
-
-                // 获取运行状态
-                result.IsPass = (jobResult.RunStatus.Result == CogToolResultConstants.Accept);
-                result.Message = jobResult.RunStatus.Message ?? (result.IsPass ? "OK" : "NG");
-
-                // 获取所有输出
-                // 遍历JobResult中的所有内容
-                CogRecord topRecord = jobResult.CreateResultRecord();
-                if (topRecord != null)
-                {
-                    CollectRecordOutputs(topRecord, result, "");
-                }
-
-                LogHelper.Info("VisionPro", $"收集到 {LastOutputs.Count} 个输出参数");
-            }
-            catch (Exception ex)
-            {
-                LogHelper.Error("VisionPro", $"收集Job结果失败: {ex.Message}");
-                result.Message = ex.Message;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// 递归收集Record中的输出
-        /// </summary>
-        private void CollectRecordOutputs(CogRecord record, InspectionResult result, string prefix)
-        {
-            if (record == null) return;
-
-            try
-            {
-                string recordKey = string.IsNullOrEmpty(prefix) ? record.RecordKey : $"{prefix}.{record.RecordKey}";
-
-                // 记录当前内容
-                if (record.Content != null)
-                {
-                    string typeName = record.Content.GetType().Name;
-
-                    LastOutputs[recordKey] = new VppOutputItem
-                    {
-                        Name = recordKey,
-                        ValueType = typeName,
-                        Value = record.Content,
-                        Description = record.Annotation ?? ""
-                    };
-
-                    result.ExtraData[recordKey] = record.Content;
-
-                    // 解析常见输出
-                    ParseCommonOutput(result, recordKey, record.Content);
-
-                    // 检查是否是图像
-                    if (record.Content is ICogImage cogImage && result.ResultImage == null)
-                    {
-                        try
-                        {
-                            result.ResultImage = cogImage.ToBitmap();
-                        }
-                        catch { }
-                    }
-
-                    LogHelper.Debug("VisionPro", $"输出: [{typeName}] {recordKey}");
-                }
-
-                // 递归处理子记录
-                if (record.SubRecords != null)
-                {
-                    foreach (CogRecord subRecord in record.SubRecords)
-                    {
-                        CollectRecordOutputs(subRecord, result, recordKey);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogHelper.Debug("VisionPro", $"处理Record异常: {ex.Message}");
             }
         }
 
@@ -656,16 +728,6 @@ namespace VisionInspectionSystem.HAL
         {
             return $"[{ValueType}] {Name}: {Value}";
         }
-    }
-
-    /// <summary>
-    /// 简单的AcqInfo实现
-    /// </summary>
-    internal class CogAcqInfo : ICogAcqInfo
-    {
-        public double TriggerTimeStamp => 0;
-        public int TriggerNumber => 0;
-        public object User => null;
     }
 
     #endregion

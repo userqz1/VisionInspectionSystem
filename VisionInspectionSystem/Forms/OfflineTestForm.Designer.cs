@@ -20,9 +20,9 @@ namespace VisionInspectionSystem.Forms
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.picSource = new System.Windows.Forms.PictureBox();
+            this.cogRecordDisplay1 = new Cognex.VisionPro.CogRecordDisplay();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.picResult = new System.Windows.Forms.PictureBox();
+            this.cogRecordDisplay2 = new Cognex.VisionPro.CogRecordDisplay();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.dgvOutputs = new System.Windows.Forms.DataGridView();
@@ -50,6 +50,9 @@ namespace VisionInspectionSystem.Forms
             this.lblVppPath = new System.Windows.Forms.ToolStripStatusLabel();
             this.btnLoadVpp = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
+            this.btnPrevImage = new System.Windows.Forms.Button();
+            this.btnNextImage = new System.Windows.Forms.Button();
+            this.lblImageIndex = new System.Windows.Forms.Label();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -60,9 +63,9 @@ namespace VisionInspectionSystem.Forms
             this.splitContainer2.Panel2.SuspendLayout();
             this.splitContainer2.SuspendLayout();
             this.groupBox1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.picSource)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cogRecordDisplay1)).BeginInit();
             this.groupBox2.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.picResult)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cogRecordDisplay2)).BeginInit();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOutputs)).BeginInit();
@@ -109,7 +112,7 @@ namespace VisionInspectionSystem.Forms
             //
             // groupBox1
             //
-            this.groupBox1.Controls.Add(this.picSource);
+            this.groupBox1.Controls.Add(this.cogRecordDisplay1);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox1.Location = new System.Drawing.Point(0, 0);
             this.groupBox1.Name = "groupBox1";
@@ -118,20 +121,25 @@ namespace VisionInspectionSystem.Forms
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "原始图像";
             //
-            // picSource
+            // cogRecordDisplay1
             //
-            this.picSource.BackColor = System.Drawing.Color.DimGray;
-            this.picSource.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.picSource.Location = new System.Drawing.Point(3, 17);
-            this.picSource.Name = "picSource";
-            this.picSource.Size = new System.Drawing.Size(389, 530);
-            this.picSource.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.picSource.TabIndex = 0;
-            this.picSource.TabStop = false;
+            this.cogRecordDisplay1.ColorMapLowerClipPercent = 0D;
+            this.cogRecordDisplay1.ColorMapLowerRoiLimit = 0D;
+            this.cogRecordDisplay1.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
+            this.cogRecordDisplay1.ColorMapUpperClipPercent = 100D;
+            this.cogRecordDisplay1.ColorMapUpperRoiLimit = 1D;
+            this.cogRecordDisplay1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.cogRecordDisplay1.Location = new System.Drawing.Point(3, 17);
+            this.cogRecordDisplay1.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
+            this.cogRecordDisplay1.MouseWheelSensitivity = 1D;
+            this.cogRecordDisplay1.Name = "cogRecordDisplay1";
+            this.cogRecordDisplay1.OcxState = null;
+            this.cogRecordDisplay1.Size = new System.Drawing.Size(389, 530);
+            this.cogRecordDisplay1.TabIndex = 0;
             //
             // groupBox2
             //
-            this.groupBox2.Controls.Add(this.picResult);
+            this.groupBox2.Controls.Add(this.cogRecordDisplay2);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox2.Location = new System.Drawing.Point(0, 0);
             this.groupBox2.Name = "groupBox2";
@@ -140,16 +148,21 @@ namespace VisionInspectionSystem.Forms
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "结果图像";
             //
-            // picResult
+            // cogRecordDisplay2
             //
-            this.picResult.BackColor = System.Drawing.Color.DimGray;
-            this.picResult.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.picResult.Location = new System.Drawing.Point(3, 17);
-            this.picResult.Name = "picResult";
-            this.picResult.Size = new System.Drawing.Size(395, 530);
-            this.picResult.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.picResult.TabIndex = 0;
-            this.picResult.TabStop = false;
+            this.cogRecordDisplay2.ColorMapLowerClipPercent = 0D;
+            this.cogRecordDisplay2.ColorMapLowerRoiLimit = 0D;
+            this.cogRecordDisplay2.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
+            this.cogRecordDisplay2.ColorMapUpperClipPercent = 100D;
+            this.cogRecordDisplay2.ColorMapUpperRoiLimit = 1D;
+            this.cogRecordDisplay2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.cogRecordDisplay2.Location = new System.Drawing.Point(3, 17);
+            this.cogRecordDisplay2.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
+            this.cogRecordDisplay2.MouseWheelSensitivity = 1D;
+            this.cogRecordDisplay2.Name = "cogRecordDisplay2";
+            this.cogRecordDisplay2.OcxState = null;
+            this.cogRecordDisplay2.Size = new System.Drawing.Size(395, 530);
+            this.cogRecordDisplay2.TabIndex = 0;
             //
             // tabControl1
             //
@@ -299,6 +312,9 @@ namespace VisionInspectionSystem.Forms
             this.panel1.Controls.Add(this.lblResult);
             this.panel1.Controls.Add(this.label4);
             this.panel1.Controls.Add(this.btnRun);
+            this.panel1.Controls.Add(this.lblImageIndex);
+            this.panel1.Controls.Add(this.btnNextImage);
+            this.panel1.Controls.Add(this.btnPrevImage);
             this.panel1.Controls.Add(this.btnLoadImage);
             this.panel1.Controls.Add(this.label2);
             this.panel1.Controls.Add(this.btnLoadVpp);
@@ -432,6 +448,37 @@ namespace VisionInspectionSystem.Forms
             this.label1.TabIndex = 0;
             this.label1.Text = "VPP文件:";
             //
+            // btnPrevImage
+            //
+            this.btnPrevImage.Enabled = false;
+            this.btnPrevImage.Location = new System.Drawing.Point(740, 55);
+            this.btnPrevImage.Name = "btnPrevImage";
+            this.btnPrevImage.Size = new System.Drawing.Size(40, 30);
+            this.btnPrevImage.TabIndex = 11;
+            this.btnPrevImage.Text = "<";
+            this.btnPrevImage.UseVisualStyleBackColor = true;
+            this.btnPrevImage.Click += new System.EventHandler(this.btnPrevImage_Click);
+            //
+            // btnNextImage
+            //
+            this.btnNextImage.Enabled = false;
+            this.btnNextImage.Location = new System.Drawing.Point(785, 55);
+            this.btnNextImage.Name = "btnNextImage";
+            this.btnNextImage.Size = new System.Drawing.Size(40, 30);
+            this.btnNextImage.TabIndex = 12;
+            this.btnNextImage.Text = ">";
+            this.btnNextImage.UseVisualStyleBackColor = true;
+            this.btnNextImage.Click += new System.EventHandler(this.btnNextImage_Click);
+            //
+            // lblImageIndex
+            //
+            this.lblImageIndex.AutoSize = true;
+            this.lblImageIndex.Location = new System.Drawing.Point(740, 25);
+            this.lblImageIndex.Name = "lblImageIndex";
+            this.lblImageIndex.Size = new System.Drawing.Size(77, 12);
+            this.lblImageIndex.TabIndex = 13;
+            this.lblImageIndex.Text = "第 0 / 0 张";
+            //
             // statusStrip1
             //
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -465,9 +512,9 @@ namespace VisionInspectionSystem.Forms
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).EndInit();
             this.splitContainer2.ResumeLayout(false);
             this.groupBox1.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.picSource)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cogRecordDisplay1)).EndInit();
             this.groupBox2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.picResult)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cogRecordDisplay2)).EndInit();
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvOutputs)).EndInit();
@@ -488,9 +535,9 @@ namespace VisionInspectionSystem.Forms
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.SplitContainer splitContainer2;
         private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.PictureBox picSource;
+        private Cognex.VisionPro.CogRecordDisplay cogRecordDisplay1;
         private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.PictureBox picResult;
+        private Cognex.VisionPro.CogRecordDisplay cogRecordDisplay2;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.DataGridView dgvOutputs;
@@ -519,5 +566,8 @@ namespace VisionInspectionSystem.Forms
         private System.Windows.Forms.DataGridViewTextBoxColumn colInputName;
         private System.Windows.Forms.DataGridViewTextBoxColumn colInputType;
         private System.Windows.Forms.DataGridViewTextBoxColumn colInputValue;
+        private System.Windows.Forms.Button btnPrevImage;
+        private System.Windows.Forms.Button btnNextImage;
+        private System.Windows.Forms.Label lblImageIndex;
     }
 }

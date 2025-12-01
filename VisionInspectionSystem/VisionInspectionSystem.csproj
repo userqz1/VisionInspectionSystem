@@ -197,6 +197,14 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Program Files (x86)\Cognex\VisionPro\ReferencedAssemblies\Cognex.VisionPro.Display.Controls.dll</HintPath>
     </Reference>
+    <Reference Include="Cognex.VisionPro.ImageFile, Version=59.2.0.0, Culture=neutral, PublicKeyToken=ef0f902af9dee505, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files (x86)\Cognex\VisionPro\ReferencedAssemblies\Cognex.VisionPro.ImageFile.dll</HintPath>
+    </Reference>
+    <Reference Include="Cognex.VisionPro.ToolGroup.Controls, Version=59.2.0.0, Culture=neutral, PublicKeyToken=ef0f902af9dee505, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files (x86)\Cognex\VisionPro\ReferencedAssemblies\Cognex.VisionPro.ToolGroup.Controls.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
