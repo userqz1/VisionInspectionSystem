@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -422,6 +423,12 @@ namespace VisionInspectionSystem.HAL
                     return true;
                 }
 
+                // 设置为连续采集模式
+                if (_camera.Parameters[PLCamera.AcquisitionMode].IsWritable)
+                {
+                    _camera.Parameters[PLCamera.AcquisitionMode].SetValue("Continuous");
+                }
+
                 _camera.StreamGrabber.ImageGrabbed += StreamGrabber_ImageGrabbed;
                 _camera.StreamGrabber.Start(GrabStrategy.OneByOne, GrabLoop.ProvidedByStreamGrabber);
 
@@ -494,25 +501,71 @@ namespace VisionInspectionSystem.HAL
 
                 Bitmap image = null;
 
-                using (IGrabResult grabResult = _camera.StreamGrabber.GrabOne(5000, TimeoutHandling.ThrowException))
+                // 触发模式：StartGrabbing + ExecuteSoftwareTrigger + RetrieveResult
+                if (_triggerMode == TriggerMode.On)
                 {
-                    if (grabResult.GrabSucceeded)
+                    try
                     {
-                        image = GrabResultToBitmap(grabResult);
-
-                        lock (_lockObj)
+                        // 1. 设置为单帧采集模式
+                        if (_camera.Parameters[PLCamera.AcquisitionMode].IsWritable)
                         {
-                            _lastImage?.Dispose();
-                            _lastImage = image?.Clone() as Bitmap;
+                            _camera.Parameters[PLCamera.AcquisitionMode].SetValue("SingleFrame");
                         }
 
-                        OnImageGrabbed(image);
-                        LogHelper.Debug("Camera", "单帧采集完成");
+                        // 2. 启动采集（进入等待触发状态）
+                        _camera.StreamGrabber.Start(1, GrabStrategy.OneByOne, GrabLoop.ProvidedByUser);
+
+                        // 3. 软触发模式：发送软触发信号；硬触发模式：等待外部信号
+                        if (_triggerSource == TriggerSource.Software)
+                        {
+                            _camera.ExecuteSoftwareTrigger();
+                        }
+
+                        // 4. 获取图像结果
+                        int timeout = _triggerSource == TriggerSource.Software ? 5000 : 30000;
+                        using (IGrabResult grabResult = _camera.StreamGrabber.RetrieveResult(timeout, TimeoutHandling.ThrowException))
+                        {
+                            if (grabResult.GrabSucceeded)
+                            {
+                                image = GrabResultToBitmap(grabResult);
+                            }
+                            else
+                            {
+                                OnError($"采集失败: {grabResult.ErrorCode} - {grabResult.ErrorDescription}");
+                            }
+                        }
                     }
-                    else
+                    finally
                     {
-                        OnError($"采集失败: {grabResult.ErrorCode} - {grabResult.ErrorDescription}");
+                        _camera.StreamGrabber.Stop();
                     }
+                }
+                else
+                {
+                    // 自由运行模式：直接GrabOne
+                    using (IGrabResult grabResult = _camera.StreamGrabber.GrabOne(5000, TimeoutHandling.ThrowException))
+                    {
+                        if (grabResult.GrabSucceeded)
+                        {
+                            image = GrabResultToBitmap(grabResult);
+                        }
+                        else
+                        {
+                            OnError($"采集失败: {grabResult.ErrorCode} - {grabResult.ErrorDescription}");
+                        }
+                    }
+                }
+
+                if (image != null)
+                {
+                    lock (_lockObj)
+                    {
+                        _lastImage?.Dispose();
+                        _lastImage = image.Clone() as Bitmap;
+                    }
+
+                    OnImageGrabbed(image);
+                    LogHelper.Debug("Camera", "单帧采集完成");
                 }
 
                 // 如果之前在连续采集，重新开始
@@ -549,10 +602,7 @@ namespace VisionInspectionSystem.HAL
                     return false;
                 }
 
-                if (_camera.CanWaitForFrameTriggerReady)
-                {
-                    _camera.WaitForFrameTriggerReady(1000, TimeoutHandling.ThrowException);
-                }
+                // AcquisitionStart模式下直接执行软触发
                 _camera.ExecuteSoftwareTrigger();
 
                 LogHelper.Debug("Camera", "执行软触发");
@@ -752,6 +802,14 @@ namespace VisionInspectionSystem.HAL
 
             try
             {
+                // 统一使用 AcquisitionStart 作为触发选择器
+                if (_camera.Parameters[PLCamera.TriggerSelector].IsWritable)
+                {
+                    _camera.Parameters[PLCamera.TriggerSelector].SetValue("AcquisitionStart");
+                    LogHelper.Debug("Camera", "设置TriggerSelector: AcquisitionStart");
+                }
+
+                // 设置触发模式
                 if (_camera.Parameters[PLCamera.TriggerMode].IsWritable)
                 {
                     _camera.Parameters[PLCamera.TriggerMode].SetValue(mode == TriggerMode.On ? "On" : "Off");

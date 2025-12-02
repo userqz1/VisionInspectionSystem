@@ -39,7 +39,7 @@ namespace VisionInspectionSystem.Forms
             this.lblCommLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.lblCommStatus = new System.Windows.Forms.ToolStripStatusLabel();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.picImage = new System.Windows.Forms.PictureBox();
+            this.cogRecordDisplay1 = new Cognex.VisionPro.CogRecordDisplay();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.groupResult = new System.Windows.Forms.GroupBox();
             this.lblRunTimeValue = new System.Windows.Forms.Label();
@@ -78,7 +78,7 @@ namespace VisionInspectionSystem.Forms
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.picImage)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cogRecordDisplay1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).BeginInit();
             this.splitContainer2.Panel1.SuspendLayout();
             this.splitContainer2.Panel2.SuspendLayout();
@@ -260,7 +260,7 @@ namespace VisionInspectionSystem.Forms
             // 
             // splitContainer1.Panel1
             // 
-            this.splitContainer1.Panel1.Controls.Add(this.picImage);
+            this.splitContainer1.Panel1.Controls.Add(this.cogRecordDisplay1);
             // 
             // splitContainer1.Panel2
             // 
@@ -270,18 +270,23 @@ namespace VisionInspectionSystem.Forms
             this.splitContainer1.SplitterWidth = 6;
             this.splitContainer1.TabIndex = 2;
             // 
-            // picImage
-            // 
-            this.picImage.BackColor = System.Drawing.Color.Black;
-            this.picImage.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.picImage.Location = new System.Drawing.Point(0, 0);
-            this.picImage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.picImage.Name = "picImage";
-            this.picImage.Size = new System.Drawing.Size(1125, 926);
-            this.picImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.picImage.TabIndex = 0;
-            this.picImage.TabStop = false;
-            this.picImage.Click += new System.EventHandler(this.picImage_Click);
+            // cogRecordDisplay1
+            //
+            this.cogRecordDisplay1.ColorMapLowerClipColor = System.Drawing.Color.Black;
+            this.cogRecordDisplay1.ColorMapLowerRoiLimit = 0D;
+            this.cogRecordDisplay1.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
+            this.cogRecordDisplay1.ColorMapUpperClipColor = System.Drawing.Color.Black;
+            this.cogRecordDisplay1.ColorMapUpperRoiLimit = 1D;
+            this.cogRecordDisplay1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.cogRecordDisplay1.DoubleTapZoomCycleLength = 2;
+            this.cogRecordDisplay1.DoubleTapZoomSensitivity = 2.5D;
+            this.cogRecordDisplay1.Location = new System.Drawing.Point(0, 0);
+            this.cogRecordDisplay1.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
+            this.cogRecordDisplay1.MouseWheelSensitivity = 1D;
+            this.cogRecordDisplay1.Name = "cogRecordDisplay1";
+            this.cogRecordDisplay1.OcxState = null;
+            this.cogRecordDisplay1.Size = new System.Drawing.Size(1125, 926);
+            this.cogRecordDisplay1.TabIndex = 0;
             // 
             // splitContainer2
             // 
@@ -300,7 +305,7 @@ namespace VisionInspectionSystem.Forms
             // 
             this.splitContainer2.Panel2.Controls.Add(this.groupLog);
             this.splitContainer2.Size = new System.Drawing.Size(669, 926);
-            this.splitContainer2.SplitterDistance = 604;
+            this.splitContainer2.SplitterDistance = 460;
             this.splitContainer2.SplitterWidth = 6;
             this.splitContainer2.TabIndex = 0;
             // 
@@ -322,7 +327,7 @@ namespace VisionInspectionSystem.Forms
             this.groupResult.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupResult.Name = "groupResult";
             this.groupResult.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupResult.Size = new System.Drawing.Size(669, 300);
+            this.groupResult.Size = new System.Drawing.Size(669, 235);
             this.groupResult.TabIndex = 0;
             this.groupResult.TabStop = false;
             this.groupResult.Text = "检测结果";
@@ -458,7 +463,7 @@ namespace VisionInspectionSystem.Forms
             this.groupStats.Controls.Add(this.lblTotal);
             this.groupStats.Controls.Add(this.lblTotalLabel);
             this.groupStats.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.groupStats.Location = new System.Drawing.Point(0, 379);
+            this.groupStats.Location = new System.Drawing.Point(0, 235);
             this.groupStats.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupStats.Name = "groupStats";
             this.groupStats.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -696,7 +701,7 @@ namespace VisionInspectionSystem.Forms
             this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.picImage)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cogRecordDisplay1)).EndInit();
             this.splitContainer2.Panel1.ResumeLayout(false);
             this.splitContainer2.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).EndInit();
@@ -738,7 +743,7 @@ namespace VisionInspectionSystem.Forms
         private System.Windows.Forms.ToolStripStatusLabel lblCommLabel;
         private System.Windows.Forms.ToolStripStatusLabel lblCommStatus;
         private System.Windows.Forms.SplitContainer splitContainer1;
-        private System.Windows.Forms.PictureBox picImage;
+        private Cognex.VisionPro.CogRecordDisplay cogRecordDisplay1;
         private System.Windows.Forms.SplitContainer splitContainer2;
         private System.Windows.Forms.GroupBox groupResult;
         private System.Windows.Forms.Label lblResult;

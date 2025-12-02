@@ -80,32 +80,16 @@ namespace VisionInspectionSystem.Forms
         }
 
         /// <summary>
-        /// 单次采集 - 根据当前触发模式自动处理
+        /// 单次采集 - 统一使用GrabOne，内部自动处理各种触发模式
         /// </summary>
         private void btnGrabOne_Click(object sender, EventArgs e)
         {
             if (!CameraManager.Instance.IsConnected) return;
 
-            var camera = CameraManager.Instance.Camera;
-
-            if (camera.TriggerMode == TriggerMode.On &&
-                camera.TriggerSource == TriggerSource.Software)
+            var image = CameraManager.Instance.GrabOne();
+            if (image != null)
             {
-                // 软触发模式：启动采集 + 发送软触发
-                CameraManager.Instance.StartGrabbing();
-                Thread.Sleep(50);
-                CameraManager.Instance.SoftwareTrigger();
-                Thread.Sleep(100);
-                CameraManager.Instance.StopGrabbing();
-            }
-            else
-            {
-                // 自由运行或硬件触发：直接采集
-                var image = CameraManager.Instance.GrabOne();
-                if (image != null)
-                {
-                    picPreview.Image = image;
-                }
+                picPreview.Image = image;
             }
         }
 

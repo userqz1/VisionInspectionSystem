@@ -16,7 +16,6 @@ namespace VisionInspectionSystem.Forms
         #region 私有字段
 
         private ModelConfig _currentConfig;
-        private bool _isLoading;
 
         #endregion
 
@@ -81,7 +80,6 @@ namespace VisionInspectionSystem.Forms
         /// </summary>
         private void LoadModelConfig(string modelName)
         {
-            _isLoading = true;
             _currentConfig = ModelManager.Instance.LoadModelConfig(modelName);
 
             if (_currentConfig != null)
@@ -110,8 +108,6 @@ namespace VisionInspectionSystem.Forms
             {
                 ClearConfigDisplay();
             }
-
-            _isLoading = false;
         }
 
         /// <summary>

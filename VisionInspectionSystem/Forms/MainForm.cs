@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using Cognex.VisionPro;
 using VisionInspectionSystem.BLL;
 using VisionInspectionSystem.Common;
 using VisionInspectionSystem.DAL;
@@ -150,7 +151,7 @@ namespace VisionInspectionSystem.Forms
             var image = CameraManager.Instance.GrabOne();
             if (image != null)
             {
-                picImage.Image = image;
+                cogRecordDisplay1.Image = new Cognex.VisionPro.CogImage8Grey(image);
             }
         }
 
@@ -300,7 +301,7 @@ namespace VisionInspectionSystem.Forms
                 return;
             }
 
-            picImage.Image = e;
+            cogRecordDisplay1.Image = new Cognex.VisionPro.CogImage8Grey(e);
         }
 
         private void CameraManager_StateChanged(object sender, CameraState e)
@@ -325,6 +326,116 @@ namespace VisionInspectionSystem.Forms
             }
 
             AddLog($"[收到] {e}");
+
+            // 处理运行命令
+            if (e.Trim() == GlobalVariables.RunConfig.StartCommand)
+            {
+                ProcessInspection();
+            }
+        }
+
+        /// <summary>
+        /// 处理检测流程
+        /// </summary>
+        private void ProcessInspection()
+        {
+            try
+            {
+                // 检查相机是否连接
+                if (!CameraManager.Instance.IsConnected)
+                {
+                    AddLog("[错误] 相机未连接");
+                    return;
+                }
+
+                // 检查版型是否加载
+                if (GlobalVariables.CurrentModel == null)
+                {
+                    AddLog("[错误] 未选择版型");
+                    return;
+                }
+
+                AddLog("[检测] 开始检测流程...");
+
+                // 1. 拍照
+                Bitmap image = CameraManager.Instance.GrabOne();
+                if (image == null)
+                {
+                    AddLog("[错误] 采集图像失败");
+                    SendResult(false);
+                    return;
+                }
+
+                AddLog("[检测] 图像采集完成");
+
+                // 显示图像
+                cogRecordDisplay1.Image = new Cognex.VisionPro.CogImage8Grey(image);
+
+                // 2. 执行检测
+                InspectionResult result = InspectionManager.Instance.RunInspection(image);
+
+                if (result == null)
+                {
+                    AddLog("[错误] 检测失败");
+                    SendResult(false);
+                    return;
+                }
+
+                // 3. 更新显示
+                UpdateInspectionResult(result);
+
+                // 4. 发送结果
+                if (GlobalVariables.RunConfig.AutoSendResult)
+                {
+                    SendResult(result.IsPass);
+                }
+
+                AddLog($"[检测] 检测完成 - {(result.IsPass ? "OK" : "NG")}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"[错误] 检测异常: {ex.Message}");
+                SendResult(false);
+            }
+        }
+
+        /// <summary>
+        /// 发送检测结果
+        /// </summary>
+        private void SendResult(bool isPass)
+        {
+            string command = isPass ? GlobalVariables.RunConfig.OkCommand : GlobalVariables.RunConfig.NgCommand;
+
+            if (CommunicationManager.Instance.IsConnected)
+            {
+                bool sent = CommunicationManager.Instance.Send(command);
+                AddLog($"[发送] {(isPass ? "OK" : "NG")} -> {command} {(sent ? "成功" : "失败")}");
+            }
+        }
+
+        /// <summary>
+        /// 更新检测结果显示
+        /// </summary>
+        private void UpdateInspectionResult(InspectionResult result)
+        {
+            lblResult.Text = result.IsPass ? "OK" : "NG";
+            lblResult.ForeColor = result.IsPass ? System.Drawing.Color.Green : System.Drawing.Color.Red;
+
+            lblX.Text = result.X.ToString("F3");
+            lblY.Text = result.Y.ToString("F3");
+            lblAngle.Text = result.Angle.ToString("F3");
+
+            lblRunTimeValue.Text = $"{result.RunTime:F1} ms";
+
+            // 更新统计（从 StatisticsManager 获取）
+            var stats = StatisticsManager.Instance.GetTodayStatistics();
+            if (stats != null)
+            {
+                lblTotal.Text = stats.TotalCount.ToString();
+                lblOK.Text = stats.OkCount.ToString();
+                lblNG.Text = stats.NgCount.ToString();
+                lblYield.Text = stats.YieldRate.ToString("F2") + "%";
+            }
         }
 
         private void CommunicationManager_ConnectionStateChanged(object sender, ConnectionState e)
@@ -441,7 +552,7 @@ namespace VisionInspectionSystem.Forms
             // 更新结果图像
             if (result.ResultImage != null)
             {
-                picImage.Image = result.ResultImage;
+                cogRecordDisplay1.Image = new Cognex.VisionPro.CogImage8Grey(result.ResultImage);
             }
         }
 
@@ -470,10 +581,5 @@ namespace VisionInspectionSystem.Forms
         }
 
         #endregion
-
-        private void picImage_Click(object sender, EventArgs e)
-        {
-
-        }
     }
 }

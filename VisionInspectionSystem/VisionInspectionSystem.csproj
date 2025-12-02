@@ -246,6 +246,7 @@
     <Compile Include="Models\InspectionResult.cs" />
     <Compile Include="Models\ModelConfig.cs" />
     <Compile Include="Models\StatisticsData.cs" />
+    <Compile Include="Models\RunConfig.cs" />
     <!-- HAL -->
     <Compile Include="HAL\BaslerCamera.cs" />
     <Compile Include="HAL\TcpCommunication.cs" />

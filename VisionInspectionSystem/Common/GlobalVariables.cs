@@ -24,6 +24,11 @@ namespace VisionInspectionSystem.Common
         public static ModelConfig CurrentModel { get; set; }
 
         /// <summary>
+        /// 运行配置
+        /// </summary>
+        public static RunConfig RunConfig { get; set; } = new RunConfig();
+
+        /// <summary>
         /// 系统运行状态
         /// </summary>
         public static SystemState SystemState { get; set; } = SystemState.Idle;

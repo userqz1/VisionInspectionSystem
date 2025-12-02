@@ -687,6 +687,7 @@ namespace VisionInspectionSystem.Forms
                     if (result.IsPass)
                     {
                         // OK时显示带图形叠加的结果图像
+                        // 使用SubRecords[recordName]方式获取指定的输出图像记录
                         ICogRecord lastRunRecord = _processor.ToolBlock.CreateLastRunRecord();
                         if (lastRunRecord != null && lastRunRecord.SubRecords != null)
                         {
